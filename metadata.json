@@ -1,0 +1,14 @@
+{
+  "name": "jhg03a-accountfacts",
+  "version": "0.1.0",
+  "author": "jhg03a",
+  "summary": "A module that converts local account data into puppet facts so introducing puppet account modules can be safer in a brownfield environment.",
+  "license": "Apache-2.0",
+  "source": "https://github.com/jhg03a/puppet-accountfacts.git",
+  "project_page": "https://github.com/jhg03a/puppet-accountfacts",
+  "issues_url": "https://github.com/jhg03a/puppet-accountfacts/issues",
+  "dependencies": [
+    {"name":"puppetlabs-stdlib","version_requirement":">= 1.0.0"}
+  ]
+}
+
