@@ -2,9 +2,7 @@ require 'facter'
 require 'etc'
 
 Facter.add(:accountfacts_groups) do
-  confine :kernel do |value|
-    value == 'Linux'
-  end
+  confine kernel: 'Linux'
 
   setcode do
     group_array = []
