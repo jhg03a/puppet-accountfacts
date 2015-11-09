@@ -40,15 +40,15 @@ Since this module only uses standard ruby libraries, no other steps are needed.
 This adds the two following structured facts:
 
 - accountfacts_groups
--- Name
--- Gid
+  - Name
+  - Gid
 - accountfacts_users
--- Name
--- Description
--- Uid
--- Primary Gid
--- Homedir
--- Shell
+  - Name
+  - Description
+  - Uid
+  - Primary Gid
+  - Homedir
+  - Shell
 
 ## Limitations
 
