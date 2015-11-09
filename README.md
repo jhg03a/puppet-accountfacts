@@ -6,74 +6,55 @@
 2. [Module Description - What the module does and why it is useful](#module-description)
 3. [Setup - The basics of getting started with accountfacts](#setup)
     * [What accountfacts affects](#what-accountfacts-affects)
-    * [Setup requirements](#setup-requirements)
     * [Beginning with accountfacts](#beginning-with-accountfacts)
-4. [Usage - Configuration options and additional functionality](#usage)
-5. [Reference - An under-the-hood peek at what the module is doing and how](#reference)
+4. [Reference - An under-the-hood peek at what the module is doing and how](#reference)
 5. [Limitations - OS compatibility, etc.](#limitations)
-6. [Development - Guide for contributing to the module](#development)
 
 ## Overview
 
-A one-maybe-two sentence summary of what the module does/what problem it solves.
-This is your 30 second elevator pitch for your module. Consider including
-OS/Puppet version it works with.
+This puppet 4 module adds structured facts for all user/group information on a linux node (excluding passwords).
+This is to aid in a brownfield deployment of a local account management module such as identity or pe_accounts.
+Additionally, it could be used as an auditing tool.
 
 ## Module Description
 
-If applicable, this section should have a brief description of the technology
-the module integrates with and what that integration enables. This section
-should answer the questions: "What does this module *do*?" and "Why would I use
-it?"
-
-If your module has a range of functionality (installation, configuration,
-management, etc.) this is the time to mention it.
+This module utilizes the ruby 'etc' library from stdlib to retrieve user & group data rather than system commands.
+This hopefully provides a greater breadth of availability across linux platforms.
+By creating custom facts, you should be able to identify consistency errors across nodes and better plan for future structured rollout.
 
 ## Setup
 
 ### What accountfacts affects
 
-* A list of files, packages, services, or operations that the module will alter,
-  impact, or execute on the system it's installed on.
-* This is a great place to stick any warnings.
-* Can be in list or paragraph form.
-
-### Setup Requirements **OPTIONAL**
-
-If your module requires anything extra before setting up (pluginsync enabled,
-etc.), mention it here.
+It should also be noted that while passwords are not reported, this information could be considered sensetive.
+Please use your best judgement and security policies.
+This is a read-only module and cannot alter account information.
 
 ### Beginning with accountfacts
 
-The very basic steps needed for a user to get the module up and running.
-
-If your most recent release breaks compatibility or requires particular steps
-for upgrading, you may wish to include an additional section here: Upgrading
-(For an example, see http://forge.puppetlabs.com/puppetlabs/firewall).
-
-## Usage
-
-Put the classes, types, and resources for customizing, configuring, and doing
-the fancy stuff with your module here.
+Add this puppet module to your catalog and you should get the facts on your next puppet run.
+Since this module only uses standard ruby libraries, no other steps are needed.
 
 ## Reference
 
-Here, list the classes, types, providers, facts, etc contained in your module.
-This section should include all of the under-the-hood workings of your module so
-people know what the module is touching on their system but don't need to mess
-with things. (We are working on automating this section!)
+This adds the two following structured facts:
+
+- accountfacts_groups
+-- Name
+-- Gid
+- accountfacts_users
+-- Name
+-- Description
+-- Uid
+-- Primary Gid
+-- Homedir
+-- Shell
 
 ## Limitations
 
-This is where you list OS compatibility, version compatibility, etc.
+The user running your puppet agent should have sufficient access.
 
 ## Development
 
-Since your module is awesome, other users will want to play with it. Let them
-know what the ground rules for contributing are.
-
-## Release Notes/Contributors/Etc **Optional**
-
-If you aren't using changelog, put your release notes here (though you should
-consider using changelog). You may also add any additional sections you feel are
-necessary or important to include here. Please use the `## ` header.
+1. Fork it
+2. Submit a pull request
