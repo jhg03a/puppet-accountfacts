@@ -1,3 +1,4 @@
+require 'facter'
 require 'etc'
 
 Facter.add(:accountfacts_groups) do
