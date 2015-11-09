@@ -14,3 +14,24 @@ Facter.add(:accountfacts_groups) do
     group_array
   end
 end
+
+Facter.add(:accountfacts_users) do
+  confine kernel: 'Linux'
+
+  setcode do
+    user_array = []
+
+    Etc.passwd do |u|
+      user_array.push(
+        'name' => u.name,
+        'description' => u.gecos,
+        'uid' => u.uid,
+        'primary gid' => u.gid,
+        'homedir' => u.dir,
+        'shell' => u.shell
+      )
+    end
+
+    user_array
+  end
+end
