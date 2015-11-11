@@ -12,8 +12,22 @@
   ],
   "operatingsystem_support": [
     {
-    "operatingsystem":"RedHat",
-    "operatingsystemrelease":["6"]
+    "operatingsystem":"RedHat"
+    },
+    {
+    "operatingsystem":"Ubuntu"
+    },
+    {
+    "operatingsystem":"Debian"
+    },
+    {
+    "operatingsystem":"OS X"
+    },
+    {
+    "operatingsystem":"Windows"
+    },
+    {
+    "operatingsystem":"SLES"
     }
   ],
   "tags": ["account","accounts","user","users","group","groups"]
