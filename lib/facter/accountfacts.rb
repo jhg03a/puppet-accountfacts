@@ -2,7 +2,31 @@ require 'facter'
 require 'etc'
 require 'win32/registry'
 
-# The ruby Etc library returns nil for windows users & groups
+# The ruby Etc library returns nil for windows groups
+Facter.add(:accountfacts_groups) do
+  confine kernel: 'windows'
+
+  setcode do
+    group_array = []
+
+    # Parse command output dropping the first 3 and last lines
+    `net localgroup`.split("\n")[4..-1].reverse.drop(1).reverse_each do |g|
+      # Parse command output dropping the first 5 and last lines
+      members = `net localgroup "#{g}"`.split("\n")[6..-1].reverse.drop(1).reverse
+
+      group_array.push(
+        'name' => g,
+        # Windows doesn't have gids
+        'gid' => '',
+        'members' => members
+      )
+    end
+
+    group_array
+  end
+end
+
+# The ruby Etc library returns nil for windows users
 Facter.add(:accountfacts_users) do
   confine kernel: 'windows'
 
@@ -12,7 +36,9 @@ Facter.add(:accountfacts_users) do
     `net user`.split("\n")[4].split(' ').each do |u|
       sid = `wmic useraccount where name='#{u}' get sid`.split("\n")[2].strip
       homedir = ''
+      # The authoritative place to look for profile location is in the windows registry, not `net user`
       Win32::Registry::HKEY_LOCAL_MACHINE.open('SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList', Win32::Registry::KEY_READ) do |profilekey|
+        # Not all windows users have profile directories
         if profilekey.keys.include?(sid)
           profilekey.open(sid) do |sidkey|
             homedir = sidkey['ProfileImagePath']
