@@ -2,8 +2,6 @@ require 'facter'
 require 'etc'
 
 Facter.add(:accountfacts_groups) do
-  confine kernel: 'Linux'
-
   setcode do
     group_array = []
 
@@ -16,8 +14,6 @@ Facter.add(:accountfacts_groups) do
 end
 
 Facter.add(:accountfacts_users) do
-  confine kernel: 'Linux'
-
   setcode do
     user_array = []
 
