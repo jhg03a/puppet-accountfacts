@@ -12,7 +12,7 @@ Facter.add(:accountfacts_groups) do
     # Parse command output dropping the first 3 and last lines
     `net localgroup`.split("\n")[4..-1].reverse.drop(1).reverse_each do |g|
       # Parse command output dropping the first 5 and last lines
-      members = `net localgroup "#{g}"`.split("\n")[6..-1].reverse.drop(1).reverse
+      members = `net localgroup \"#{g}\"`.split("\n")[6..-1].reverse.drop(1).reverse
 
       group_array.push(
         'name' => g,
