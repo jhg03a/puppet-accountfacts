@@ -10,9 +10,11 @@ Facter.add(:accountfacts_groups) do
     group_array = []
 
     # Parse command output dropping the first 3 and last lines
-    `net localgroup`.split("\n")[4..-1].reverse.drop(1).reverse_each do |g|
+    all_groups = Facter::Core::Execution.execute('net localgroup')
+    all_groups.split("\n")[4..-1].reverse.drop(1).reverse_each do |g|
       # Parse command output dropping the first 5 and last lines
-      members = `net localgroup \"#{g}\"`.split("\n")[6..-1].reverse.drop(1).reverse
+      group_members = Facter::Core::Execution.execute("net localgroup \"#{g}\"")
+      members = group_members.split("\n")[6..-1].reverse.drop(1).reverse
 
       group_array.push(
         'name' => g,
@@ -33,8 +35,10 @@ Facter.add(:accountfacts_users) do
   setcode do
     user_array = []
 
-    `net user`.split("\n")[4].split(' ').each do |u|
-      sid = `wmic useraccount where name='#{u}' get sid`.split("\n")[2].strip
+    all_users = Facter::Core::Execution.execute('net user')
+    all_users.split("\n")[4].split(' ').each do |u|
+      raw_sid = Facter::Core::Execution.execute("wmic useraccount where name=\'#{u}\' get sid")
+      sid = raw_sid.split("\n")[2].strip
       homedir = ''
       # The authoritative place to look for profile location is in the windows registry, not `net user`
       Win32::Registry::HKEY_LOCAL_MACHINE.open('SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList', Win32::Registry::KEY_READ) do |profilekey|
@@ -45,7 +49,8 @@ Facter.add(:accountfacts_users) do
           end
         end
       end
-      out_array = `net user #{u}`.split("\n").strip
+      raw_out_array = Facter::Core::Execution.execute("net user #{u}")
+      out_array = raw_out_array.split("\n").strip
       user_data_hash = {}
       out_array.each do |a|
         # The output assumes a 27 character wide key field
