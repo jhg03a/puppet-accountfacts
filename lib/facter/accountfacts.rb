@@ -38,9 +38,9 @@ Facter.add(:accountfacts_users) do
     user_array = []
 
     all_users = Facter::Core::Execution.execute('net user')
-    all_users.split("\n")[4].split(' ').each do |u|
+    all_users.split("\n")[3].split(' ').each do |u|
       raw_sid = Facter::Core::Execution.execute("wmic useraccount where name=\'#{u}\' get sid")
-      sid = raw_sid.split("\n")[2].strip
+      sid = raw_sid.split("\n")[1].strip
       homedir = ''
       # The authoritative place to look for profile location is in the windows registry, not `net user`
       Win32::Registry::HKEY_LOCAL_MACHINE.open('SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList', Win32::Registry::KEY_READ) do |profilekey|
