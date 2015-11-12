@@ -51,7 +51,7 @@ Facter.add(:accountfacts_users) do
           end
         end
       end
-      raw_out_array = Facter::Core::Execution.execute("net user \'#{u}\'")
+      raw_out_array = Facter::Core::Execution.execute("net user \"#{u}\"")
       out_array = raw_out_array.split("\n").each(&:strip!)
       user_data_hash = {}
       out_array.each do |a|
