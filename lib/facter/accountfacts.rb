@@ -11,7 +11,7 @@ Facter.add(:accountfacts_groups) do
 
     # Parse command output dropping the first 3 and last lines
     all_groups = Facter::Core::Execution.execute('net localgroup')
-    all_groups.split("\n")[4..-1].reverse.drop(1).reverse_each do |g|
+    all_groups.split("\n")[3..-1].reverse.drop(1).reverse_each do |g|
       g.delete!('*').strip!
       # Parse command output dropping the first 5 and last lines
       group_members = Facter::Core::Execution.execute("net localgroup \"#{g}\"")
