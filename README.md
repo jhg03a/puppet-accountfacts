@@ -9,6 +9,7 @@
     * [Beginning with accountfacts](#beginning-with-accountfacts)
 4. [Reference - An under-the-hood peek at what the module is doing and how](#reference)
 5. [Limitations - OS compatibility, etc.](#limitations)
+6. [Changelog](#changelog)
 
 ## Overview
 
@@ -64,3 +65,9 @@ The user running your puppet agent should have sufficient access.  If someone ha
 
 1. Fork it
 2. Submit a pull request
+
+## Changelog
+
+- v1.1.1 - Bugfix for windows user and group output
+- v1.1.0 - Added OSX & Windows support (may have also added solaris & aix as well)
+- v1.0.0 - Initial Release (Linux Only)
