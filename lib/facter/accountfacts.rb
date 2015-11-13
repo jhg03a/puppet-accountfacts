@@ -1,6 +1,5 @@
 require 'facter'
 require 'etc'
-require 'win32/registry'
 
 # The ruby Etc library returns nil for windows groups
 Facter.add(:accountfacts_groups) do
@@ -37,40 +36,45 @@ Facter.add(:accountfacts_users) do
   setcode do
     user_array = []
 
-    all_users = Facter::Core::Execution.execute('net user')
-    all_users.split("\n")[3].split(' ').each do |u|
-      raw_sid = Facter::Core::Execution.execute("wmic useraccount where name=\'#{u}\' get sid")
-      sid = raw_sid.split("\n")[1].strip
-      homedir = ''
-      # The authoritative place to look for profile location is in the windows registry, not `net user`
-      Win32::Registry::HKEY_LOCAL_MACHINE.open('SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList', Win32::Registry::KEY_READ) do |profilekey|
-        # Not all windows users have profile directories
-        if profilekey.keys.include?(sid)
-          profilekey.open(sid) do |sidkey|
-            homedir = sidkey['ProfileImagePath']
+    # The Windows registry gem doesn't ship with OSX or Linux puppet agents, avoid running on other platforms
+    if RUBY_PLATFORM =~ /win/
+      require 'win32/registry'
+
+      all_users = Facter::Core::Execution.execute('net user')
+      all_users.split("\n")[3].split(' ').each do |u|
+        raw_sid = Facter::Core::Execution.execute("wmic useraccount where name=\'#{u}\' get sid")
+        sid = raw_sid.split("\n")[1].strip
+        homedir = ''
+        # The authoritative place to look for profile location is in the windows registry, not `net user`
+        Win32::Registry::HKEY_LOCAL_MACHINE.open('SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList', Win32::Registry::KEY_READ) do |profilekey|
+          # Not all windows users have profile directories
+          if profilekey.keys.include?(sid)
+            profilekey.open(sid) do |sidkey|
+              homedir = sidkey['ProfileImagePath']
+            end
           end
         end
-      end
-      raw_out_array = Facter::Core::Execution.execute("net user \"#{u}\"")
-      out_array = raw_out_array.split("\n").each(&:strip!)
-      user_data_hash = {}
-      out_array.each do |a|
-        # The output assumes a 27 character wide key field
-        next unless a[27] == ' '
-        key = a[0..27].strip
-        # This is known to be broken for group lists that extend beyond more than one or two groups
-        value = a[28..-1].strip
-        user_data_hash[key] = value
-      end
+        raw_out_array = Facter::Core::Execution.execute("net user \"#{u}\"")
+        out_array = raw_out_array.split("\n").each(&:strip!)
+        user_data_hash = {}
+        out_array.each do |a|
+          # The output assumes a 27 character wide key field
+          next unless a[27] == ' '
+          key = a[0..27].strip
+          # This is known to be broken for group lists that extend beyond more than one or two groups
+          value = a[28..-1].strip
+          user_data_hash[key] = value
+        end
 
-      user_array.push(
-        'name' => u,
-        'description' => user_data_hash['Comment'],
-        'uid' => sid,
-        'primary gid' => '',
-        'homedir' => homedir,
-        'shell' => user_data_hash['Account active']
-      )
+        user_array.push(
+          'name' => u,
+          'description' => user_data_hash['Comment'],
+          'uid' => sid,
+          'primary gid' => '',
+          'homedir' => homedir,
+          'shell' => user_data_hash['Account active']
+        )
+      end
     end
     user_array
   end
