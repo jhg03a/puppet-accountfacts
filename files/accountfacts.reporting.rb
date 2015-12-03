@@ -107,8 +107,8 @@ unless options[:pdb].end_with? '/pdb/query/v4/'
   options[:pdb] = options[:pdb] + '/pdb/query/v4/'
 end
 
-ALL_ACCOUNTFACTS_USERS_QUERY = '["=","name","accountfacts_users"]'
-ALL_ACCOUNTFACTS_GROUPS_QUERY = '["=","name","accountfacts_groups"]'
+ALL_ACCOUNTFACTS_USERS_QUERY = '["extract",["certname","path","value"],["=","name","accountfacts_users"]]'
+ALL_ACCOUNTFACTS_GROUPS_QUERY = '["extract",["certname","path","value"],["=","name","accountfacts_groups"]]'
 
 pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
 pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_USERS_QUERY)
