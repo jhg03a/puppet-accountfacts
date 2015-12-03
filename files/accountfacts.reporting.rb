@@ -12,6 +12,7 @@
 require 'rest-client'
 require 'optparse'
 require 'uri'
+require 'json'
 
 options = {}
 using_ssl_connection = false
@@ -50,8 +51,12 @@ class PdbConnection
     else
       response = rest_client.execute(method: :get, url: url, headers: { accept: '*/*' })
     end
-    puts response.inspect
-    response
+    
+    response = JSON.parse(response)
+    
+    fail Exception, 'Empty response returned' if response.empty? or response.nil?
+    
+    return response
   end
 end
 
