@@ -40,7 +40,7 @@ class PdbConnection
 
   def request(pdb_endpoint, query)
     rest_client = RestClient::Request
-    url = @base_url + pdb_endpoint + "?" + URI.encode_www_form("query" => query)
+    url = @base_url + pdb_endpoint + '?' + URI.encode_www_form('query' => query)
     response = nil
     if @using_ssl_connection
       response = rest_client.execute(method: :get, url: url, headers: { accept: '*/*' },
