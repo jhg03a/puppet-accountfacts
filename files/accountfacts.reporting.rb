@@ -92,18 +92,26 @@ end
 
 unless options[:client_cert].nil? && options[:client_key].nil? && options[:ca_cert].nil?
   using_ssl_connection = true
-end
 
-if using_ssl_connection && (options[:client_cert].nil? || options[:client_key].nil? || options[:ca_cert].nil?)
-  fail OptionParser::MissingArgument, 'If using SSL, all 3 SSL parameters must be provided'
+  if options[:client_cert].nil? || options[:client_key].nil? || options[:ca_cert].nil?
+    fail OptionParser::MissingArgument, 'If using SSL, all 3 SSL parameters must be provided'
+  end
+
+  unless options[:client_cert].end_with?('.pem') && options[:client_key].end_with?('.pem') && options[:ca_cert].end_with?('.pem')
+    fail ArgumentError, 'SSL files must be PEM formatted'
+  end
+
+  fail ArgumentError, "File not found: #{options[:client_cert]}" unless File.file?(options[:client_cert])
+  fail ArgumentError, "File not found: #{options[:client_key]}" unless File.file?(options[:client_key])
+  fail ArgumentError, "File not found: #{options[:ca_cert]}" unless File.file?(options[:ca_cert])
 end
 
 unless options[:pdb].end_with? '/pdb/query/v4/'
   options[:pdb] = options[:pdb] + '/pdb/query/v4/'
 end
 
-all_accountfacts_users_query = '["=","name","accountfacts_users"]'
-all_accountfacts_groups_query = '["=","name","accountfacts_groups"]'
+ALL_ACCOUNTFACTS_USERS_QUERY = '["=","name","accountfacts_users"]'
+ALL_ACCOUNTFACTS_GROUPS_QUERY = '["=","name","accountfacts_groups"]'
 
 pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
-pdb_connection.request('fact-contents', all_accountfacts_users_query)
+pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_USERS_QUERY)
