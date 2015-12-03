@@ -83,9 +83,6 @@ OptionParser.new do |opts|
   end
 end.parse!
 
-p options
-p ARGV
-
 if options[:pdb].nil?
   fail OptionParser::MissingArgument, 'No URL parameter provided'
 end
@@ -97,9 +94,9 @@ unless options[:client_cert].nil? && options[:client_key].nil? && options[:ca_ce
     fail OptionParser::MissingArgument, 'If using SSL, all 3 SSL parameters must be provided'
   end
 
-  unless options[:client_cert].end_with?('.pem') && options[:client_key].end_with?('.pem') && options[:ca_cert].end_with?('.pem')
-    fail ArgumentError, 'SSL files must be PEM formatted'
-  end
+  fail ArgumentError, "File must be PEM formatted: #{options[:client_cert]}" unless options[:client_cert].end_with?('.pem')
+  fail ArgumentError, "File must be PEM formatted: #{options[:client_key]}" unless options[:client_key].end_with?('.pem')
+  fail ArgumentError, "File must be PEM formatted: #{options[:ca_cert]}" unless options[:ca_cert].end_with?('.pem')
 
   fail ArgumentError, "File not found: #{options[:client_cert]}" unless File.file?(options[:client_cert])
   fail ArgumentError, "File not found: #{options[:client_key]}" unless File.file?(options[:client_key])
