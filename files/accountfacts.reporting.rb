@@ -51,12 +51,23 @@ class PdbConnection
     else
       response = rest_client.execute(method: :get, url: url, headers: { accept: '*/*' })
     end
-    
+
     response = JSON.parse(response)
-    
-    fail Exception, 'Empty response returned' if response.empty? or response.nil?
-    
-    return response
+
+    fail Exception, 'Empty response returned' if response.empty? || response.nil?
+
+    response
+  end
+end
+class UserAccounts
+  attr_accessor :accounts
+  
+  def initialize()
+    @accounts = []
+  end
+  
+  class UserAccount
+    attr_accessor :uid, :primary_gid, :uname, :shell, :home_dir, :source_node
   end
 end
 
@@ -116,4 +127,26 @@ ALL_ACCOUNTFACTS_USERS_QUERY = '["extract",["certname","path","value"],["=","nam
 ALL_ACCOUNTFACTS_GROUPS_QUERY = '["extract",["certname","path","value"],["=","name","accountfacts_groups"]]'
 
 pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
-pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_USERS_QUERY)
+response = pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_USERS_QUERY)
+
+all_source_node_names = response.map { |a| a['certname'] }.uniq
+# puts all_source_node_names
+user_account_facts = UserAccounts.new
+all_source_node_names.each do|node_name|
+  puts "Processing #{node_name}...."
+  node_entries = response.select { |a| a['certname'] == node_name }
+  user_indexes = node_entries.map { |a| a['path'][1] }.uniq
+  user_indexes.each do|user_index|
+    user_entries = node_entries.select { |a| a['path'][1] == user_index }
+    user = UserAccounts::UserAccount.new
+    user.uid = user_entries.find { |a| a['path'][2] == 'uid' }['value']
+    user.primary_gid = user_entries.find { |a| a['path'][2] == 'primary gid' }['value']
+    user.uname = user_entries.find { |a| a['path'][2] == 'name' }['value']
+    user.shell = user_entries.find { |a| a['path'][2] == 'shell' }['value']
+    user.home_dir = user_entries.find { |a| a['path'][2] == 'homedir' }['value']
+    user.source_node = node_name
+    user_account_facts.accounts << user
+  end
+end
+
+puts user_account_facts.inspect
