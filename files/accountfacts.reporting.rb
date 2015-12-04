@@ -16,6 +16,9 @@ require 'json'
 
 options = {}
 using_ssl_connection = false
+REPORTS = %w(user-reports group-reports)
+REPORT_ALIASES = { 'ur' => 'user-reports', 'gr' => 'group-reports' }
+REPORT_FORMATS = %w(html json)
 
 class PdbConnection
   def initialize(base_url = 'http://localhost:8080/pdb/query/v4')
@@ -69,17 +72,17 @@ class UserAccounts
   class UserAccount
     attr_accessor :uid, :primary_gid, :uname, :shell, :home_dir, :description, :source_node
     def to_hash
-      out = {'uid' => @uid, 
-            'primary_gid' => @primary_gid, 
-            'uname' => @uname, 
-            'shell' => @shell, 
-            'source_node' => @source_node, 
-            'homedir' => @homedir,
-            'description' => @description}
-      return out
+      out = { 'uid' => @uid,
+              'primary_gid' => @primary_gid,
+              'uname' => @uname,
+              'shell' => @shell,
+              'source_node' => @source_node,
+              'homedir' => @homedir,
+              'description' => @description }
+      out
     end
   end
-  
+
   def load_from_response(response)
     all_source_node_names = response.map { |a| a['certname'] }.uniq
 
@@ -101,24 +104,24 @@ class UserAccounts
       end
     end
   end
-  
+
   def get_normalized_data
-    accounts_grouped = @accounts.collect{ |a| a.to_hash}.group_by{|a| {'uname' => a['uname'], 
-                             'uid' => a['uid'], 
-                             'primary_gid' => a['primary_gid'], 
-                             'shell' => a['shell'], 
-                             'homedir' => a['homedir']}
-    }
+    accounts_grouped = @accounts.collect(&:to_hash).group_by do|a|
+      { 'uname' => a['uname'],
+        'uid' => a['uid'],
+        'primary_gid' => a['primary_gid'],
+        'shell' => a['shell'],
+        'homedir' => a['homedir'] }
+    end
     # group_by returns an array of (hash (parameters) to an array of hash(matches))
     # merge the differences between matches into subarrays and flatten responses
     # that way there is one record for each grouping
-    out = accounts_grouped.collect{ |a|
-      a[0].merge({'nodes' => a[1].collect{|b| b['source_node']}.sort!}).merge(
-        {'descriptions' => a[1].collect{|b| b['description']}.uniq.sort!})
-      }.compact.sort!{ |a,b| a['uname'] <=> b['uname']}
-    return out
+    out = accounts_grouped.collect do |a|
+      a[0].merge('nodes' => a[1].collect { |b| b['source_node'] }.sort!).merge(
+        'descriptions' => a[1].collect { |b| b['description'] }.uniq.sort!)
+    end.compact.sort! { |a, b| a['uname'] <=> b['uname'] }
+    out
   end
-  
 end
 
 class UserGroups
@@ -135,7 +138,7 @@ class UserGroups
       members = []
     end
   end
-  
+
   def load_from_response(response)
     all_source_node_names = response.map { |a| a['certname'] }.uniq
 
@@ -178,6 +181,15 @@ OptionParser.new do |opts|
   opts.on('--ssl_ca_cert [CA.PEM]',
           'Optional PEM formatted SSL certificate for trusted SSL validation') do |ca_cert|
     options[:ca_cert] = ca_cert
+  end
+
+  report_list = (REPORT_ALIASES.keys + REPORTS).join(',')
+  opts.on('--report REPORT', REPORTS, REPORT_ALIASES, "Select Report Type:   (#{report_list})") do |report|
+    options[:report] = report
+  end
+
+  opts.on('--report-format REPORT_FORMAT', REPORT_FORMATS, "Select Report Format:   (#{REPORT_FORMATS.join(',')})") do |report_format|
+    options[:report_format] = report_format
   end
 
   opts.on('-h', '--help', 'Show this message') do
