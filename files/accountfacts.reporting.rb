@@ -68,6 +68,27 @@ class UserAccounts
 
   class UserAccount
     attr_accessor :uid, :primary_gid, :uname, :shell, :home_dir, :source_node
+  
+  def load_from_response(response)
+    all_source_node_names = response.map { |a| a['certname'] }.uniq
+
+    all_source_node_names.each do|node_name|
+      puts "Processing Users on #{node_name}...."
+      node_entries = response.select { |a| a['certname'] == node_name }
+      user_indexes = node_entries.map { |a| a['path'][1] }.uniq
+      user_indexes.each do|user_index|
+        user_entries = node_entries.select { |a| a['path'][1] == user_index }
+        user = UserAccounts::UserAccount.new
+        user.uid = user_entries.find { |a| a['path'][2] == 'uid' }['value']
+        user.primary_gid = user_entries.find { |a| a['path'][2] == 'primary gid' }['value']
+        user.uname = user_entries.find { |a| a['path'][2] == 'name' }['value']
+        user.shell = user_entries.find { |a| a['path'][2] == 'shell' }['value']
+        user.home_dir = user_entries.find { |a| a['path'][2] == 'homedir' }['value']
+        user.source_node = node_name
+        @accounts << user
+      end
+    end
+  end
   end
 end
 
@@ -83,6 +104,27 @@ class UserGroups
 
     def initialization
       members = []
+    end
+  end
+  
+  def load_from_response(response)
+    all_source_node_names = response.map { |a| a['certname'] }.uniq
+
+    all_source_node_names.each do |node_name|
+      puts "Processing Groups on #{node_name}..."
+      node_entries = response.select { |a| a['certname'] == node_name }
+      group_indexes = node_entries.map { |a| a['path'][1] }.uniq
+      group_indexes.each do |group_index|
+        group_entries = node_entries.select { |a| a['path'][1] == group_index }
+        group = UserGroups::UserGroup.new
+        group.gid = group_entries.find { |a| a['path'][2] == 'gid' }['value']
+        group.name = group_entries.find { |a| a['path'][2] == 'name' }['value']
+        members = []
+        group_entries.select { |a| a['path'][2] == 'members' }.each { |a| members << a['value'] }
+        group.members = members
+        group.source_node = node_name
+        @groups << group
+      end
     end
   end
 end
@@ -142,45 +184,11 @@ end
 ALL_ACCOUNTFACTS_USERS_QUERY = '["extract",["certname","path","value"],["=","name","accountfacts_users"]]'
 ALL_ACCOUNTFACTS_GROUPS_QUERY = '["extract",["certname","path","value"],["=","name","accountfacts_groups"]]'
 
-pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
-response = pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_USERS_QUERY)
-
-all_source_node_names = response.map { |a| a['certname'] }.uniq
 user_account_facts = UserAccounts.new
-all_source_node_names.each do|node_name|
-  puts "Processing Users on #{node_name}...."
-  node_entries = response.select { |a| a['certname'] == node_name }
-  user_indexes = node_entries.map { |a| a['path'][1] }.uniq
-  user_indexes.each do|user_index|
-    user_entries = node_entries.select { |a| a['path'][1] == user_index }
-    user = UserAccounts::UserAccount.new
-    user.uid = user_entries.find { |a| a['path'][2] == 'uid' }['value']
-    user.primary_gid = user_entries.find { |a| a['path'][2] == 'primary gid' }['value']
-    user.uname = user_entries.find { |a| a['path'][2] == 'name' }['value']
-    user.shell = user_entries.find { |a| a['path'][2] == 'shell' }['value']
-    user.home_dir = user_entries.find { |a| a['path'][2] == 'homedir' }['value']
-    user.source_node = node_name
-    user_account_facts.accounts << user
-  end
-end
-
-response = pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_GROUPS_QUERY)
-all_source_node_names = response.map { |a| a['certname'] }.uniq
 group_account_facts = UserGroups.new
-all_source_node_names.each do |node_name|
-  puts "Processing Groups on #{node_name}..."
-  node_entries = response.select { |a| a['certname'] == node_name }
-  group_indexes = node_entries.map { |a| a['path'][1] }.uniq
-  group_indexes.each do |group_index|
-    group_entries = node_entries.select { |a| a['path'][1] == group_index }
-    group = UserGroups::UserGroup.new
-    group.gid = group_entries.find { |a| a['path'][2] == 'gid' }['value']
-    group.name = group_entries.find { |a| a['path'][2] == 'name' }['value']
-    members = []
-    group_entries.select { |a| a['path'][2] == 'members' }.each { |a| members << a['value'] }
-    group.members = members
-    group.source_node = node_name
-    group_account_facts.groups << group
-  end
-end
+
+pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
+user_account_facts.load_from_response(pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_USERS_QUERY))
+group_account_facts.load_from_response(pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_GROUPS_QUERY))
+
 # puts group_account_facts.inspect
