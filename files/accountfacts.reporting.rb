@@ -68,6 +68,16 @@ class UserAccounts
 
   class UserAccount
     attr_accessor :uid, :primary_gid, :uname, :shell, :home_dir, :source_node
+    def to_hash
+      out = {'uid' => @uid, 
+            'primary_gid' => @primary_gid, 
+            'uname' => @uname, 
+            'shell' => @shell, 
+            'source_node' => @source_node, 
+            'homedir' => @homedir}
+      return out
+    end
+  end
   
   def load_from_response(response)
     all_source_node_names = response.map { |a| a['certname'] }.uniq
@@ -89,7 +99,26 @@ class UserAccounts
       end
     end
   end
+  
+  def get_normalized_data
+    tmp = @accounts.collect{ |a| a.to_hash}
+    tmp2 = tmp.group_by{|a| {'uname' => a['uname'], 
+                             'uid' => a['uid'], 
+                             'primary_gid' => a['primary_gid'], 
+                             'shell' => a['shell'], 
+                             'homedir' => a['homedir']}
+    }
+    tmp3 = []
+    tmp2.each{ |a|
+      nodes = a[1].collect{|b| b['source_node']}
+      tmp4 = {'nodes' => nodes}
+      tmp3 << a[0].merge(tmp4)
+      binding.pry
+    }
+    tmp3.compact!
+    return tmp3.sort{ |a,b| a['uname'] <=> b['uname']}
   end
+  
 end
 
 class UserGroups
