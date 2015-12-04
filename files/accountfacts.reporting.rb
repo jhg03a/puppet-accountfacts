@@ -14,6 +14,7 @@ require 'optparse'
 require 'uri'
 require 'json'
 require 'etc'
+require 'erb'
 
 options = {}
 using_ssl_connection = false
@@ -88,7 +89,6 @@ class UserAccounts
     all_source_node_names = response.map { |a| a['certname'] }.uniq
 
     all_source_node_names.each do|node_name|
-      puts "Processing Users on #{node_name}...."
       node_entries = response.select { |a| a['certname'] == node_name }
       user_indexes = node_entries.map { |a| a['path'][1] }.uniq
       user_indexes.each do|user_index|
@@ -144,7 +144,6 @@ class UserGroups
     all_source_node_names = response.map { |a| a['certname'] }.uniq
 
     all_source_node_names.each do |node_name|
-      puts "Processing Groups on #{node_name}..."
       node_entries = response.select { |a| a['certname'] == node_name }
       group_indexes = node_entries.map { |a| a['path'][1] }.uniq
       group_indexes.each do |group_index|
@@ -163,9 +162,57 @@ class UserGroups
 end
 
 module JsonReport
-  def JsonReport.print_report(name, input)
-    wrapped_input = {'Report name' => name, 'Run on' => Time.now, 'Run by' => Etc.getlogin(), 'Report data' => input}
+  def self.print_report(name, input)
+    wrapped_input = { 'Report name' => name, 'Run on' => Time.now, 'Run by' => Etc.getlogin, 'Report data' => input }
     puts JSON.pretty_generate(wrapped_input)
+  end
+end
+
+class HtmlReport < ERB
+  def convert_row(row_hash)
+    result = ''
+    row_hash.each_value do|col|
+      result << '<td>'
+      case col
+      when String, Fixnum then result << col.to_s
+      when NilClass then result << ''
+      when Array then
+        result << '<ul>'
+        col.each do |a|
+          result << "<li>#{a}</li>"
+        end
+        result << '</ul>'
+      else
+        result << 'Unknown data type!!!'
+      end
+      result << '</td>'
+    end
+    result
+  end
+
+  def self.template
+    "
+    <!DOCTYPE html><html>
+    <head><title><%= @name %></title></head>
+    <body>
+    <center><h2><%= @name %></h2><br>Run On: <%= Time.now %><br>Run By: <%= Etc.getlogin %></center>
+    <table style='width 100%'>
+      <tr><% for @column in @input.first.keys %><th><%= @column %></th><% end %></tr>
+      <% for @row in @input[1..-1] %><tr><%= convert_row(@row) %></tr><% end %>
+    </table>
+    </body></html>
+    "
+  end
+
+  def initialize(name, input = {}, options = {})
+    @name = name
+    @input = input
+    @template = options.fetch(:template, self.class.template)
+    super(@template)
+  end
+
+  def result
+    super(binding)
   end
 end
 
@@ -240,4 +287,9 @@ pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[
 user_account_facts.load_from_response(pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_USERS_QUERY))
 group_account_facts.load_from_response(pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_GROUPS_QUERY))
 
-# puts group_account_facts.inspect
+output = ''
+case options[:report_format]
+when 'json' then output = JsonReport.print_report('All User Account Data', user_account_facts.get_normalized_data)
+when 'html' then output = HtmlReport.new('All User Account Data', user_account_facts.get_normalized_data).result
+end
+puts output
