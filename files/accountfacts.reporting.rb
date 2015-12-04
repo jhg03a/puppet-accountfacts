@@ -169,6 +169,62 @@ module JsonReport
 end
 
 class HtmlReport < ERB
+  module Light_javascript_table_filter
+    def self.get_license
+      "<!--
+Copyright (c) 2015 by Chris Coyier (http://codepen.io/chriscoyier/pen/tIuBL)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->"
+    end
+
+    def self.get_js
+      "(function(document) {
+  'use strict';
+
+  var LightTableFilter = (function(Arr) {
+
+    var _input;
+
+    function _onInputEvent(e) {
+      _input = e.target;
+      var tables = document.getElementsByClassName(_input.getAttribute('data-table'));
+      Arr.forEach.call(tables, function(table) {
+        Arr.forEach.call(table.tBodies, function(tbody) {
+          Arr.forEach.call(tbody.rows, _filter);
+        });
+      });
+    }
+
+    function _filter(row) {
+      var text = row.textContent.toLowerCase(), val = _input.value.toLowerCase();
+      row.style.display = text.indexOf(val) === -1 ? 'none' : 'table-row';
+    }
+
+    return {
+      init: function() {
+        var inputs = document.getElementsByClassName('light-table-filter');
+        Arr.forEach.call(inputs, function(input) {
+          input.oninput = _onInputEvent;
+        });
+      }
+    };
+  })(Array.prototype);
+
+  document.addEventListener('readystatechange', function() {
+    if (document.readyState === 'complete') {
+      LightTableFilter.init();
+    }
+  });
+
+})(document);"
+    end
+  end
+
   def convert_row(row_hash)
     result = ''
     row_hash.each_value do|col|
@@ -193,10 +249,15 @@ class HtmlReport < ERB
   def self.template
     "
     <!DOCTYPE html><html>
-    <head><title><%= @name %></title></head>
+    <head>
+      <%= HtmlReport::Light_javascript_table_filter.get_license %>
+      <script type='text/javascript'><%= HtmlReport::Light_javascript_table_filter.get_js %></script>
+      <title><%= @name %></title>
+    </head>
     <body>
     <center><h2><%= @name %></h2><br>Run On: <%= Time.now %><br>Run By: <%= Etc.getlogin %></center>
-    <table style='width 100%'>
+    <input type='search' class='light-table-filter' data-table='order-table' placeholder='Filter'>
+    <table style='width 100%' class='order-table table'>
       <tr><% for @column in @input.first.keys %><th><%= @column %></th><% end %></tr>
       <% for @row in @input[1..-1] %><tr><%= convert_row(@row) %></tr><% end %>
     </table>
