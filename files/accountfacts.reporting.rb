@@ -79,7 +79,7 @@ class UserAccounts
               'uname' => @uname,
               'shell' => @shell,
               'source_node' => @source_node,
-              'homedir' => @homedir,
+              'home_dir' => @home_dir,
               'description' => @description }
       out
     end
@@ -112,13 +112,13 @@ class UserAccounts
         'uid' => a['uid'],
         'primary_gid' => a['primary_gid'],
         'shell' => a['shell'],
-        'homedir' => a['homedir'] }
+        'home_dir' => a['home_dir'] }
     end
     # group_by returns an array of (hash (parameters) to an array of hash(matches))
     # merge the differences between matches into subarrays and flatten responses
     # that way there is one record for each grouping
     out = accounts_grouped.collect do |a|
-      a[0].merge('nodes' => a[1].collect { |b| b['source_node'] }.sort!).merge(
+      a[0].merge('nodes' => a[1].collect { |b| b['source_node'] }.uniq.sort!).merge(
         'descriptions' => a[1].collect { |b| b['description'] }.uniq.sort!)
     end.compact.sort! { |a, b| a['uname'] <=> b['uname'] }
     out
