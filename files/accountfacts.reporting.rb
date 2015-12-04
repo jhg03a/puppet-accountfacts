@@ -101,22 +101,19 @@ class UserAccounts
   end
   
   def get_normalized_data
-    tmp = @accounts.collect{ |a| a.to_hash}
-    tmp2 = tmp.group_by{|a| {'uname' => a['uname'], 
+    accounts_grouped = @accounts.collect{ |a| a.to_hash}.group_by{|a| {'uname' => a['uname'], 
                              'uid' => a['uid'], 
                              'primary_gid' => a['primary_gid'], 
                              'shell' => a['shell'], 
                              'homedir' => a['homedir']}
     }
-    tmp3 = []
-    tmp2.each{ |a|
-      nodes = a[1].collect{|b| b['source_node']}
-      tmp4 = {'nodes' => nodes}
-      tmp3 << a[0].merge(tmp4)
-      binding.pry
-    }
-    tmp3.compact!
-    return tmp3.sort{ |a,b| a['uname'] <=> b['uname']}
+    # group_by returns an array of (hash (parameters) to an array of hash(matches))
+    # merge the differences between matches into subarrays and flatten responses
+    # that way there is one record for each grouping
+    out = accounts_grouped.collect{ |a|
+      a[0].merge({'nodes' => a[1].collect{|b| b['source_node']}})
+      }.compact.sort!{ |a,b| a['uname'] <=> b['uname']}
+    return out
   end
   
 end
