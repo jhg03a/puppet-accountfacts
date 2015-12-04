@@ -67,14 +67,15 @@ class UserAccounts
   end
 
   class UserAccount
-    attr_accessor :uid, :primary_gid, :uname, :shell, :home_dir, :source_node
+    attr_accessor :uid, :primary_gid, :uname, :shell, :home_dir, :description, :source_node
     def to_hash
       out = {'uid' => @uid, 
             'primary_gid' => @primary_gid, 
             'uname' => @uname, 
             'shell' => @shell, 
             'source_node' => @source_node, 
-            'homedir' => @homedir}
+            'homedir' => @homedir,
+            'description' => @description}
       return out
     end
   end
@@ -94,6 +95,7 @@ class UserAccounts
         user.uname = user_entries.find { |a| a['path'][2] == 'name' }['value']
         user.shell = user_entries.find { |a| a['path'][2] == 'shell' }['value']
         user.home_dir = user_entries.find { |a| a['path'][2] == 'homedir' }['value']
+        user.description = user_entries.find { |a| a['path'][2] == 'description' }['value']
         user.source_node = node_name
         @accounts << user
       end
@@ -111,7 +113,8 @@ class UserAccounts
     # merge the differences between matches into subarrays and flatten responses
     # that way there is one record for each grouping
     out = accounts_grouped.collect{ |a|
-      a[0].merge({'nodes' => a[1].collect{|b| b['source_node']}})
+      a[0].merge({'nodes' => a[1].collect{|b| b['source_node']}.sort!}).merge(
+        {'descriptions' => a[1].collect{|b| b['description']}.uniq.sort!})
       }.compact.sort!{ |a,b| a['uname'] <=> b['uname']}
     return out
   end
