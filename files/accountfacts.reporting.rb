@@ -61,13 +61,29 @@ class PdbConnection
 end
 class UserAccounts
   attr_accessor :accounts
-  
-  def initialize()
+
+  def initialize
     @accounts = []
   end
-  
+
   class UserAccount
     attr_accessor :uid, :primary_gid, :uname, :shell, :home_dir, :source_node
+  end
+end
+
+class UserGroups
+  attr_accessor :groups
+
+  def initialize
+    @groups = []
+  end
+
+  class UserGroup
+    attr_accessor :gid, :name, :members, :source_node
+
+    def initialization
+      members = []
+    end
   end
 end
 
@@ -130,10 +146,9 @@ pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[
 response = pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_USERS_QUERY)
 
 all_source_node_names = response.map { |a| a['certname'] }.uniq
-# puts all_source_node_names
 user_account_facts = UserAccounts.new
 all_source_node_names.each do|node_name|
-  puts "Processing #{node_name}...."
+  puts "Processing Users on #{node_name}...."
   node_entries = response.select { |a| a['certname'] == node_name }
   user_indexes = node_entries.map { |a| a['path'][1] }.uniq
   user_indexes.each do|user_index|
@@ -149,4 +164,23 @@ all_source_node_names.each do|node_name|
   end
 end
 
-puts user_account_facts.inspect
+response = pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_GROUPS_QUERY)
+all_source_node_names = response.map { |a| a['certname'] }.uniq
+group_account_facts = UserGroups.new
+all_source_node_names.each do |node_name|
+  puts "Processing Groups on #{node_name}..."
+  node_entries = response.select { |a| a['certname'] == node_name }
+  group_indexes = node_entries.map { |a| a['path'][1] }.uniq
+  group_indexes.each do |group_index|
+    group_entries = node_entries.select { |a| a['path'][1] == group_index }
+    group = UserGroups::UserGroup.new
+    group.gid = group_entries.find { |a| a['path'][2] == 'gid' }['value']
+    group.name = group_entries.find { |a| a['path'][2] == 'name' }['value']
+    members = []
+    group_entries.select { |a| a['path'][2] == 'members' }.each { |a| members << a['value'] }
+    group.members = members
+    group.source_node = node_name
+    group_account_facts.groups << group
+  end
+end
+# puts group_account_facts.inspect
