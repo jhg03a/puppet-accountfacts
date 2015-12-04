@@ -13,6 +13,7 @@ require 'rest-client'
 require 'optparse'
 require 'uri'
 require 'json'
+require 'etc'
 
 options = {}
 using_ssl_connection = false
@@ -158,6 +159,13 @@ class UserGroups
         @groups << group
       end
     end
+  end
+end
+
+module JsonReport
+  def JsonReport.print_report(name, input)
+    wrapped_input = {'Report name' => name, 'Run on' => Time.now, 'Run by' => Etc.getlogin(), 'Report data' => input}
+    puts JSON.pretty_generate(wrapped_input)
   end
 end
 
