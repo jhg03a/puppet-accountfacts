@@ -233,11 +233,13 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
       when String, Fixnum then result << col.to_s
       when NilClass then result << ''
       when Array then
-        result << '<ul>'
-        col.each do |a|
+        if !col.empty? && !col.uniq.first.empty? then
+          result << '<ul>'
+          col.each do |a|
           result << "<li>#{a}</li>"
         end
-        result << '</ul>'
+          result << '</ul>'
+        end
       else
         result << 'Unknown data type!!!'
       end
@@ -252,19 +254,57 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
     <head>
       <%= HtmlReport::Light_javascript_table_filter.get_license %>
       <script type='text/javascript'><%= HtmlReport::Light_javascript_table_filter.get_js %></script>
+      <style type='text/css'>
+      .ReportCSS {
+      	margin:0px;padding:0px;
+      	width:100%;
+      	box-shadow: 10px 10px 5px #888888;
+      }.ReportCSS table{
+          border-collapse: collapse;
+              border-spacing: 0;
+      	width:100%;
+      	height:100%;
+      	margin:0px;padding:0px;
+      }
+      .ReportCSS tr:nth-child(odd){ background-color:#e2c6ff; }
+      .ReportCSS tr:nth-child(even){ background-color:#ffffff; }
+      .ReportCSS td{
+      	vertical-align:middle;
+      	border:1px solid #000000;
+      	text-align:left;
+      	padding:8px;
+      	font-size:13px;
+      	font-family:Arial;
+      	font-weight:normal;
+      	color:#000000;
+      }
+      .ReportCSS thead tr:first-child td{
+      		background:-o-linear-gradient(bottom, #7f00ff 5%, #3f007f 100%);	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #7f00ff), color-stop(1, #3f007f) );
+      	background:-moz-linear-gradient( center top, #7f00ff 5%, #3f007f 100% );
+      	
+      	background-color:#7f00ff;
+      	border:0px solid #000000;
+      	text-align:center;
+      	font-size:22px;
+      	font-family:Arial;
+      	font-weight:bold;
+      	color:#ffffff;
+      }
+      </style>
       <title><%= @name %></title>
     </head>
     <body>
     <center><h2><%= @name %></h2><br>Run On: <%= Time.now %><br>Run By: <%= Etc.getlogin %></center>
     <input type='search' class='light-table-filter' data-table='order-table' placeholder='Filter'>
-    <table style='width 100%' class='order-table table'>
-      <tr><% for @column in @input.first.keys %><th><%= @column %></th><% end %></tr>
-      <% for @row in @input[1..-1] %><tr><%= convert_row(@row) %></tr><% end %>
+    <span class='ReportCSS'>
+    <table style='width 100%' class='order-table'>
+      <thead><tr><% @input.first.keys.each do |column| %><%= '<td>'+column+'</td>' %><% end %></tr></thead>
+      <tbody><% for @row in @input[0..-1] %><tr><%= convert_row(@row) %></tr><% end %></tbody>
     </table>
+    </span>
     </body></html>
     "
   end
-
   def initialize(name, input = {}, options = {})
     @name = name
     @input = input
