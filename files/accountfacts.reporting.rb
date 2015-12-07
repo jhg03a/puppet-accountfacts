@@ -394,7 +394,7 @@ unless options[:pdb].end_with? '/pdb/query/v4/'
 end
 
 filter = ""
-filter = options[:query_filter] = '["select_fact_contents", ["~", "certname", ".*"]]' if options[:query_filter].nil?
+filter = options[:query_filter].nil? ? '["select_fact_contents", ["~", "certname", ".*"]]' : options[:query_filter]
 
 accountfacts_user_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_users"], ["in", "certname", ["extract", "certname", '+filter+']]]]]'
 accountfacts_group_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_groups"], ["in", "certname", ["extract", "certname", '+filter+']]]]]'
