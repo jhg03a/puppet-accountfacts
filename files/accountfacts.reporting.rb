@@ -48,6 +48,7 @@ class PdbConnection
     rest_client = RestClient::Request
     url = @base_url + pdb_endpoint + '?' + URI.encode_www_form('query' => query)
     response = nil
+    begin
     if @using_ssl_connection
       response = rest_client.execute(method: :get, url: url, headers: { accept: '*/*' },
                                      ssl_client_cert: @client_cert,
@@ -56,6 +57,15 @@ class PdbConnection
     else
       response = rest_client.execute(method: :get, url: url, headers: { accept: '*/*' })
     end
+  rescue RestClient::InternalServerError => e
+    puts e.inspect
+    puts "Query URL:"+URI.unescape(url)
+    Kernel.abort("Communication error occurred")
+  rescue => e
+    puts e
+    puts "Query URL:"+URI.unescape(url)
+    Kernel.abort("An unknown error occurred")
+  end
 
     response = JSON.parse(response)
 
