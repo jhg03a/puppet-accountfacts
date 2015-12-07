@@ -350,7 +350,7 @@ OptionParser.new do |opts|
   end
   
   opts.on('--filter_report PUPPETDB_QUERY_FILTER',
-            'Optional PuppetDB filter query to apply') do |query_filter|
+            'Optional PuppetDB filter query to apply for example: ["select_fact_contents",["and",["=","name","kernel"],["=","value","Linux"]]]') do |query_filter|
               options[:query_filter] = query_filter
             end
 
