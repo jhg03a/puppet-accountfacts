@@ -324,17 +324,17 @@ OptionParser.new do |opts|
     options[:pdb] = pdb
   end
 
-  opts.on('--ssl_client_cert [CLIENTCERT.PEM]',
+  opts.on('--ssl_client_cert CLIENTCERT.PEM',
           'Optional PEM formatted SSL Client certificate for a remote connection to the PuppetDB') do |client_cert|
             options[:client_cert] = client_cert
           end
 
-  opts.on('--ssl_client_key [CLIENTKEY.PEM]',
+  opts.on('--ssl_client_key CLIENTKEY.PEM',
           'Optional PEM formatted SSL client certificate private key') do |client_key|
     options[:client_key] = client_key
   end
 
-  opts.on('--ssl_ca_cert [CA.PEM]',
+  opts.on('--ssl_ca_cert CA.PEM',
           'Optional PEM formatted SSL certificate for trusted SSL validation') do |ca_cert|
     options[:ca_cert] = ca_cert
   end
