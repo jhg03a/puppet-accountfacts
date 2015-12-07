@@ -338,6 +338,11 @@ OptionParser.new do |opts|
           'Optional PEM formatted SSL certificate for trusted SSL validation') do |ca_cert|
     options[:ca_cert] = ca_cert
   end
+  
+  opts.on('--filter_report PUPPETDB_QUERY_FILTER',
+            'Optional PuppetDB filter query to apply') do |query_filter|
+              options[:query_filter] = query_filter
+            end
 
   report_list = (REPORT_ALIASES.keys + REPORTS).join(',')
   opts.on('--report REPORT', REPORTS, REPORT_ALIASES, "Select Report Type:   (#{report_list})") do |report|
@@ -378,15 +383,18 @@ unless options[:pdb].end_with? '/pdb/query/v4/'
   options[:pdb] = options[:pdb] + '/pdb/query/v4/'
 end
 
-ALL_ACCOUNTFACTS_USERS_QUERY = '["extract",["certname","path","value"],["=","name","accountfacts_users"]]'
-ALL_ACCOUNTFACTS_GROUPS_QUERY = '["extract",["certname","path","value"],["=","name","accountfacts_groups"]]'
+filter = ""
+filter = options[:query_filter] = '["select_fact_contents", ["~", "certname", ".*"]]' if options[:query_filter].nil?
+
+accountfacts_user_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_users"], ["in", "certname", ["extract", "certname", '+filter+']]]]]'
+accountfacts_group_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_groups"], ["in", "certname", ["extract", "certname", '+filter+']]]]]'
 
 user_account_facts = UserAccounts.new
 group_account_facts = UserGroups.new
 
 pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
-user_account_facts.load_from_response(pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_USERS_QUERY))
-group_account_facts.load_from_response(pdb_connection.request('fact-contents', ALL_ACCOUNTFACTS_GROUPS_QUERY))
+user_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_user_query))
+group_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_group_query))
 
 output = ''
 case options[:report_format]
