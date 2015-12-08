@@ -148,6 +148,17 @@ class UserGroups
     def initialization
       members = []
     end
+
+    def to_hash
+      out = {
+        'gid' => @gid,
+        'name' => @name,
+        'source_node' =>  @source_node,
+        'members' => @members
+      }
+      out['members'].sort!
+      out
+    end
   end
 
   def load_from_response(response)
@@ -168,6 +179,22 @@ class UserGroups
         @groups << group
       end
     end
+  end
+
+  def get_normalized_data
+    groups_grouped = @groups.collect(&:to_hash).group_by do|a|
+      { 'gid' => a['gid'],
+        'name' => a['name'],
+        'members' => a['members'] }
+    end
+    out = groups_grouped.collect do |a|
+      a[0].merge('nodes' => a[1].collect { |b| b['source_node'] }.uniq.sort!)
+    end.compact.group_by do |a|
+      { 'gid' => a['gid'], 'name' => a['name'], 'membership' => { 'members' => a['members'], 'nodes' => a['nodes'] } }
+    end.keys.group_by { |a| { 'gid' => a['gid'], 'name' => a['name'] } }.collect do |a|
+      a[0].merge('membership' => a[1].collect { |b| b['membership'] })
+    end
+    out.sort! { |a, b| a['gid'] <=> b['gid'] }
   end
 end
 
@@ -407,8 +434,16 @@ user_account_facts.load_from_response(pdb_connection.request('fact-contents', ac
 group_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_group_query))
 
 output = ''
-case options[:report_format]
-when 'json' then output = JsonReport.print_report('All User Account Data', user_account_facts.get_normalized_data)
-when 'html' then output = HtmlReport.new('All User Account Data', user_account_facts.get_normalized_data).result
+case options[:report]
+when 'user-reports'
+  case options[:report_format]
+  when 'json' then output = JsonReport.print_report('User Account Data', user_account_facts.get_normalized_data)
+  when 'html' then output = HtmlReport.new('User Account Data', user_account_facts.get_normalized_data).result
+    end
+when 'group-reports'
+  case options[:report_format]
+  when 'json' then output = JsonReport.print_report('Group Data', group_account_facts.get_normalized_data)
+  when 'html' then output = HtmlReport.new('Group Data', group_account_facts.get_normalized_data).result
+  end
 end
 puts output
