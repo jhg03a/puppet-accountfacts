@@ -59,12 +59,12 @@ class PdbConnection
     end
   rescue RestClient::InternalServerError => e
     puts e.inspect
-    puts "Query URL:"+URI.unescape(url)
-    Kernel.abort("Communication error occurred")
+    puts 'Query URL:' + URI.unescape(url)
+    Kernel.abort('Communication error occurred')
   rescue => e
     puts e
-    puts "Query URL:"+URI.unescape(url)
-    Kernel.abort("An unknown error occurred")
+    puts 'Query URL:' + URI.unescape(url)
+    Kernel.abort('An unknown error occurred')
   end
 
     response = JSON.parse(response)
@@ -270,11 +270,11 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
       when String, Fixnum then result << col.to_s
       when NilClass then result << ''
       when Array then
-        if !col.empty? && !col.uniq.first.empty? then
+        if !col.empty? && !col.uniq.first.empty?
           result << '<ul>'
           col.each do |a|
-          result << "<li>#{a}</li>"
-        end
+            result << "<li>#{a}</li>"
+          end
           result << '</ul>'
         end
       else
@@ -293,39 +293,39 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
       <script type='text/javascript'><%= HtmlReport::Light_javascript_table_filter.get_js %></script>
       <style type='text/css'>
       .ReportCSS {
-      	margin:0px;padding:0px;
-      	width:100%;
-      	box-shadow: 10px 10px 5px #888888;
+        margin:0px;padding:0px;
+        width:100%;
+        box-shadow: 10px 10px 5px #888888;
       }.ReportCSS table{
           border-collapse: collapse;
               border-spacing: 0;
-      	width:100%;
-      	height:100%;
-      	margin:0px;padding:0px;
+        width:100%;
+        height:100%;
+        margin:0px;padding:0px;
       }
       .ReportCSS tr:nth-child(odd){ background-color:#e2c6ff; }
       .ReportCSS tr:nth-child(even){ background-color:#ffffff; }
       .ReportCSS td{
-      	vertical-align:middle;
-      	border:1px solid #000000;
-      	text-align:left;
-      	padding:8px;
-      	font-size:13px;
-      	font-family:Arial;
-      	font-weight:normal;
-      	color:#000000;
+        vertical-align:middle;
+        border:1px solid #000000;
+        text-align:left;
+        padding:8px;
+        font-size:13px;
+        font-family:Arial;
+        font-weight:normal;
+        color:#000000;
       }
       .ReportCSS thead tr:first-child td{
-      		background:-o-linear-gradient(bottom, #7f00ff 5%, #3f007f 100%);	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #7f00ff), color-stop(1, #3f007f) );
-      	background:-moz-linear-gradient( center top, #7f00ff 5%, #3f007f 100% );
-      	
-      	background-color:#7f00ff;
-      	border:0px solid #000000;
-      	text-align:center;
-      	font-size:22px;
-      	font-family:Arial;
-      	font-weight:bold;
-      	color:#ffffff;
+          background:-o-linear-gradient(bottom, #7f00ff 5%, #3f007f 100%);	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #7f00ff), color-stop(1, #3f007f) );
+        background:-moz-linear-gradient( center top, #7f00ff 5%, #3f007f 100% );
+
+        background-color:#7f00ff;
+        border:0px solid #000000;
+        text-align:center;
+        font-size:22px;
+        font-family:Arial;
+        font-weight:bold;
+        color:#ffffff;
       }
       </style>
       <title><%= @name %></title>
@@ -342,6 +342,7 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
     </body></html>
     "
   end
+
   def initialize(name, input = {}, options = {})
     @name = name
     @input = input
@@ -375,11 +376,11 @@ OptionParser.new do |opts|
           'Optional PEM formatted SSL certificate for trusted SSL validation') do |ca_cert|
     options[:ca_cert] = ca_cert
   end
-  
+
   opts.on('--filter_report PUPPETDB_QUERY_FILTER',
-            'Optional PuppetDB filter query to apply for example: ["select_fact_contents",["and",["=","name","kernel"],["=","value","Linux"]]]') do |query_filter|
-              options[:query_filter] = query_filter
-            end
+          'Optional PuppetDB filter query to apply. For example: ["select_fact_contents",["and",["=","name","kernel"],["=","value","Linux"]]]') do |query_filter|
+    options[:query_filter] = query_filter
+  end
 
   report_list = (REPORT_ALIASES.keys + REPORTS).join(',')
   opts.on('--report REPORT', REPORTS, REPORT_ALIASES, "Select Report Type:   (#{report_list})") do |report|
@@ -420,11 +421,11 @@ unless options[:pdb].end_with? '/pdb/query/v4/'
   options[:pdb] = options[:pdb] + '/pdb/query/v4/'
 end
 
-filter = ""
+filter = ''
 filter = options[:query_filter].nil? ? '["select_fact_contents", ["~", "certname", ".*"]]' : options[:query_filter]
 
-accountfacts_user_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_users"], ["in", "certname", ["extract", "certname", '+filter+']]]]]'
-accountfacts_group_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_groups"], ["in", "certname", ["extract", "certname", '+filter+']]]]]'
+accountfacts_user_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_users"], ["in", "certname", ["extract", "certname", ' + filter + ']]]]]'
+accountfacts_group_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_groups"], ["in", "certname", ["extract", "certname", ' + filter + ']]]]]'
 
 user_account_facts = UserAccounts.new
 group_account_facts = UserGroups.new
