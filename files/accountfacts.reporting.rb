@@ -23,25 +23,16 @@ REPORT_ALIASES = { 'ur' => 'user-reports', 'gr' => 'group-reports' }
 REPORT_FORMATS = %w(html json)
 
 class PdbConnection
-  def initialize(base_url = 'http://localhost:8080/pdb/query/v4')
-    @base_url = base_url
-    @using_ssl_connection = false
-    @client_cert = nil
-    @client_key = nil
-    @ca_cert = nil
-    @url = base_url
-  end
-
   def initialize(base_url = 'http://localhost:8080/pdb/query/v4',
                  using_ssl_connection = false,
-                 client_cert, client_key, ca_cert)
+                 client_cert = nil, client_key = nil, ca_cert = nil)
     @base_url = base_url
     @using_ssl_connection = using_ssl_connection
     @url = base_url
 
-    @client_cert = OpenSSL::X509::Certificate.new(File.read(client_cert))
-    @client_key = OpenSSL::PKey::RSA.new(File.read(client_key))
-    @ca_cert = ca_cert
+    @client_cert = client_cert.nil? ? nil : OpenSSL::X509::Certificate.new(File.read(client_cert))
+    @client_key = client_key.nil? ? nil : OpenSSL::PKey::RSA.new(File.read(client_key))
+    @ca_cert = ca_cert.nil? ? nil : ca_cert
   end
 
   def request(pdb_endpoint, query)
@@ -116,7 +107,7 @@ class UserAccounts
     end
   end
 
-  def get_normalized_data
+  def normalize_data
     accounts_grouped = @accounts.collect(&:to_hash).group_by do|a|
       { 'uname' => a['uname'],
         'uid' => a['uid'],
@@ -130,8 +121,9 @@ class UserAccounts
     out = accounts_grouped.collect do |a|
       a[0].merge('nodes' => a[1].collect { |b| b['source_node'] }.uniq.sort!).merge(
         'descriptions' => a[1].collect { |b| b['description'] }.uniq.sort!)
-    end.compact.sort! { |a, b| a['uname'] <=> b['uname'] }
-    out
+    end
+    out.compact!
+    out.sort! { |a, b| a['uname'] <=> b['uname'] }
   end
 end
 
@@ -144,10 +136,6 @@ class UserGroups
 
   class UserGroup
     attr_accessor :gid, :name, :members, :source_node
-
-    def initialization
-      members = []
-    end
 
     def to_hash
       out = {
@@ -181,7 +169,7 @@ class UserGroups
     end
   end
 
-  def get_normalized_data
+  def normalize_data
     groups_grouped = @groups.collect(&:to_hash).group_by do|a|
       { 'gid' => a['gid'],
         'name' => a['name'],
@@ -189,9 +177,13 @@ class UserGroups
     end
     out = groups_grouped.collect do |a|
       a[0].merge('nodes' => a[1].collect { |b| b['source_node'] }.uniq.sort!)
-    end.compact.group_by do |a|
+    end
+    out.compact!
+    out = out.group_by do |a|
       { 'gid' => a['gid'], 'name' => a['name'], 'membership' => { 'members' => a['members'], 'nodes' => a['nodes'] } }
-    end.keys.group_by { |a| { 'gid' => a['gid'], 'name' => a['name'] } }.collect do |a|
+    end
+    out = out.keys
+    out = out.group_by { |a| { 'gid' => a['gid'], 'name' => a['name'] } }.collect do |a|
       a[0].merge('membership' => a[1].collect { |b| b['membership'] })
     end
     out.sort! { |a, b| a['gid'] <=> b['gid'] }
@@ -206,8 +198,8 @@ module JsonReport
 end
 
 class HtmlReport < ERB
-  module Light_javascript_table_filter
-    def self.get_license
+  module LightJavascriptTableFilter
+    def self.third_party_license
       "<!--
 Copyright (c) 2015 by Chris Coyier (http://codepen.io/chriscoyier/pen/tIuBL)
 
@@ -219,7 +211,7 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
 -->"
     end
 
-    def self.get_js
+    def self.third_party_js
       "(function(document) {
   'use strict';
 
@@ -289,8 +281,8 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
     "
     <!DOCTYPE html><html>
     <head>
-      <%= HtmlReport::Light_javascript_table_filter.get_license %>
-      <script type='text/javascript'><%= HtmlReport::Light_javascript_table_filter.get_js %></script>
+      <%= HtmlReport::LightJavascriptTableFilter.third_party_license %>
+      <script type='text/javascript'><%= HtmlReport::LightJavascriptTableFilter.third_party_js %></script>
       <style type='text/css'>
       .ReportCSS {
         margin:0px;padding:0px;
@@ -421,7 +413,6 @@ unless options[:pdb].end_with? '/pdb/query/v4/'
   options[:pdb] = options[:pdb] + '/pdb/query/v4/'
 end
 
-filter = ''
 filter = options[:query_filter].nil? ? '["select_fact_contents", ["~", "certname", ".*"]]' : options[:query_filter]
 
 accountfacts_user_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_users"], ["in", "certname", ["extract", "certname", ' + filter + ']]]]]'
@@ -438,13 +429,13 @@ output = ''
 case options[:report]
 when 'user-reports'
   case options[:report_format]
-  when 'json' then output = JsonReport.print_report('User Account Data', user_account_facts.get_normalized_data)
-  when 'html' then output = HtmlReport.new('User Account Data', user_account_facts.get_normalized_data).result
-    end
+  when 'json' then output = JsonReport.print_report('User Account Data', user_account_facts.normalize_data)
+  when 'html' then output = HtmlReport.new('User Account Data', user_account_facts.normalize_data).result
+  end
 when 'group-reports'
   case options[:report_format]
-  when 'json' then output = JsonReport.print_report('Group Data', group_account_facts.get_normalized_data)
-  when 'html' then output = HtmlReport.new('Group Data', group_account_facts.get_normalized_data).result
+  when 'json' then output = JsonReport.print_report('Group Data', group_account_facts.normalize_data)
+  when 'html' then output = HtmlReport.new('Group Data', group_account_facts.normalize_data).result
   end
 end
 puts output
