@@ -239,7 +239,7 @@ class UserGroups
   # Some report formats can't handle normalized data and need it fully expanded with duplicates
   def denormalize_data(sort_mode)
     # Since members are stored in a subarray, we have to compute the needed number of columns and populate them
-    max_member_columns = @groups.max_by { |a| a.members.size }.members.uniq.size
+    max_member_columns = @groups.max_by { |a| a.members.uniq.size }.members.uniq.size
     out = @groups.collect(&:to_hash)
     out.collect { |a| (0..max_member_columns - 1).collect { |b| a["Member_#{b}"] = a['members'][b] } }
     # Having expanded the members data, delete the original form since it's not needed or probably parseable meaningfully
