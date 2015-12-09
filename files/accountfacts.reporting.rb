@@ -254,6 +254,52 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
     end
   end
 
+  def convert_array(arr)
+    return '' if arr.nil?
+    result = ''
+    # binding.pry
+    case arr
+    when String, Fixnum then result << arr.to_s
+    when NilClass then result << ''
+    when Array
+      case arr.first
+      when String, Fixnum
+        result << '<ul>'
+        arr.each do |a|
+          result << "<li>#{convert_array(a)}</li>"
+        end
+        result << '</ul>'
+      when NilClass then result << ''
+      when Array
+        result << '<ul>'
+        arr.each do |a|
+          result << convert_array(a)
+        end
+        result << '</ul>'
+      when Hash
+        result << '<span class="ReportCSSChildTable ReportCSS"><table>'
+        result << '<thead>'
+        result << '<tr>'
+        arr.first.keys.each { |a| result << "<td>#{convert_array(a)}</td>" }
+        result << '</tr>'
+        result << '</thead>'
+        result << '<tbody>'
+        arr.each do|a|
+          result << '<tr>'
+          a.values.each { |b| result << "<td>#{convert_array(b)}</td>" }
+          result << '</tr>'
+        end
+        result << '</tbody>'
+        result << '</table></span>'
+      else
+        result << 'Unknown value!!'
+      end
+    else
+      binding.pry
+      result << 'Unknown value!'
+  end
+  end
+
   def convert_row(row_hash)
     result = ''
     row_hash.each_value do|col|
@@ -261,14 +307,7 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
       case col
       when String, Fixnum then result << col.to_s
       when NilClass then result << ''
-      when Array then
-        if !col.empty? && !col.uniq.first.empty?
-          result << '<ul>'
-          col.each do |a|
-            result << "<li>#{a}</li>"
-          end
-          result << '</ul>'
-        end
+      when Array then result << convert_array(col)
       else
         result << 'Unknown data type!!!'
       end
@@ -319,6 +358,29 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
         font-weight:bold;
         color:#ffffff;
       }
+      .ReportCSS ul{
+        padding-left: 20px;
+        padding-right: 20px;
+        margin-top: 0px;
+        margin-bottom: 0px;
+      }
+      .ReportCSSChildTable thead tr:first-child td{
+          background:-o-linear-gradient(bottom, #3f579f 5%, #00207f 100%);	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #3f579f), color-stop(1, #00207f) );
+        background:-moz-linear-gradient( center top, #3f579f 5%, #00207f 100% );
+
+        padding-top: 4px;
+        padding-bottom: 4px;
+        padding-left: 4px;
+        padding-right: 4px;
+        background-color:#33d5d1;
+        border:0px solid #000000;
+        text-align:center;
+        font-size:16px;
+        font-family:Arial;
+        font-weight:bold;
+        color:#ffffff;
+      }
+      .ReportCSSChildTable tr:nth-child(odd){ background-color:#d4ebf5; }
       </style>
       <title><%= @name %></title>
     </head>
