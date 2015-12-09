@@ -9,7 +9,7 @@ class accountfacts::reporting (
   
   if ! defined(Package['ruby']) { package { 'ruby': ensure => installed, } }
   if ! defined(Package['rubygems']) { package { 'rubygems': ensure => installed, } }
-  if ! defined(Package['Rest-client']) { package { 'Rest-client': ensure => installed, provider => 'gem',} }
+  if ! defined(Package['Rest-client']) { package { 'rest-client': ensure => installed, provider => 'gem',} }
   
   file { $install_path :
     ensure => 'directory',
