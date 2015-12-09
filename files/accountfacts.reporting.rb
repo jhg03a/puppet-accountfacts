@@ -152,7 +152,7 @@ class UserGroups
         'gid' => @gid,
         'name' => @name,
         'source_node' =>  @source_node,
-        'members' => @members
+        'members' => @members.uniq.sort!
       }
       out['members'].sort!
       out
