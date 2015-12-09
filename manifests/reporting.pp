@@ -12,7 +12,7 @@ class accountfacts::reporting (
     'redhat', 'suse': {
       if ! defined(Package['ruby-devel']) { package { 'ruby-devel': ensure => installed, } }
     }
-    'debian:' {
+    'debian': {
       if ! defined(Package['ruby-dev']) { package { 'ruby-dev': ensure => installed, } }
     }
     default: {
