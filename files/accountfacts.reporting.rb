@@ -11,9 +11,6 @@
 
 require 'rest-client'
 require 'optparse'
-require 'uri'
-require 'json'
-require 'etc'
 require 'erb'
 
 options = {}
