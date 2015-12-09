@@ -21,6 +21,7 @@ using_ssl_connection = false
 REPORTS = %w(user-reports group-reports)
 REPORT_ALIASES = { 'ur' => 'user-reports', 'gr' => 'group-reports' }
 REPORT_FORMATS = %w(html json)
+SORT_MODE = %w(name id)
 
 class PdbConnection
   def initialize(base_url = 'http://localhost:8080/pdb/query/v4',
@@ -112,7 +113,7 @@ class UserAccounts
     end
   end
 
-  def normalize_data
+  def normalize_data(sort_mode)
     accounts_grouped = @accounts.collect(&:to_hash).group_by do|a|
       { 'uname' => a['uname'],
         'uid' => a['uid'],
@@ -128,7 +129,8 @@ class UserAccounts
         'descriptions' => a[1].collect { |b| b['description'] }.uniq.sort!)
     end
     out.compact!
-    out.sort! { |a, b| a['uname'] <=> b['uname'] }
+    sort_key = sort_mode == "id" ? "uid" : "uname"
+    out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
   end
 end
 
@@ -181,11 +183,12 @@ class UserGroups
 
   def load_from_UserAccounts(users)
     users.each do |user|
-      @groups.find { |a| a.source_node == user.source_node && a.gid == user.primary_gid }.members.push("*#{user.uname}")
+      result = @groups.find { |a| a.source_node == user.source_node && a.gid == user.primary_gid }
+      result.members.push("*#{user.uname}") if !result.nil?
     end
   end
 
-  def normalize_data
+  def normalize_data(sort_mode)
     groups_grouped = @groups.collect(&:to_hash).group_by do|a|
       { 'gid' => a['gid'],
         'name' => a['name'],
@@ -202,7 +205,8 @@ class UserGroups
     out = out.group_by { |a| { 'gid' => a['gid'], 'name' => a['name'] } }.collect do |a|
       a[0].merge('membership' => a[1].collect { |b| b['membership'] })
     end
-    out.sort! { |a, b| a['gid'] <=> b['gid'] }
+    sort_key = sort_mode == "id" ? "gid" : "name"
+    out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
   end
 end
 
@@ -455,8 +459,12 @@ OptionParser.new do |opts|
     options[:report] = report
   end
 
-  opts.on('--report-format REPORT_FORMAT', REPORT_FORMATS, "Select Report Format:   (#{REPORT_FORMATS.join(',')})") do |report_format|
+  opts.on('--report_format REPORT_FORMAT', REPORT_FORMATS, "Select Report Format:   (#{REPORT_FORMATS.join(',')})") do |report_format|
     options[:report_format] = report_format
+  end
+
+  opts.on('--sort_mode SORT_MODE', SORT_MODE, "Select Sorting Primary Key:   (#{SORT_MODE.join(',')})") do |sort_mode|
+    options[:sort_mode] = sort_mode
   end
 
   opts.on('-h', '--help', 'Show this message') do
@@ -505,14 +513,14 @@ output = ''
 case options[:report]
 when 'user-reports'
   case options[:report_format]
-  when 'json' then output = JsonReport.print_report('User Account Data', user_account_facts.normalize_data)
-  when 'html' then output = HtmlReport.new('User Account Data', user_account_facts.normalize_data).result
+  when 'json' then output = JsonReport.print_report('User Account Data', user_account_facts.normalize_data(options[:sort_mode]))
+  when 'html' then output = HtmlReport.new('User Account Data', user_account_facts.normalize_data(options[:sort_mode])).result
   end
 when 'group-reports'
   group_account_facts.load_from_UserAccounts(user_account_facts)
   case options[:report_format]
-  when 'json' then output = JsonReport.print_report('Group Data', group_account_facts.normalize_data)
-  when 'html' then output = HtmlReport.new('Group Data', group_account_facts.normalize_data).result
+  when 'json' then output = JsonReport.print_report('Group Data', group_account_facts.normalize_data(options[:sort_mode]))
+  when 'html' then output = HtmlReport.new('Group Data', group_account_facts.normalize_data(options[:sort_mode])).result
   end
 end
 puts output
