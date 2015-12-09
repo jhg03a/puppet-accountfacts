@@ -7,6 +7,10 @@ class accountfacts::reporting (
   include stdlib
   validate_absolute_path($install_path)
   
+  if ! defined(Package["ruby"]) { package { "ruby": ensure => installed, } }
+  if ! defined(Package["rubygems"]) { package { "rubygems": ensure => installed, } }
+  if ! defined(Package["Rest-client"]) { package { "Rest-client": ensure => installed, provider => 'gem',} }
+  
   file { $install_path :
     ensure => 'directory',
     mode   => '0750',
