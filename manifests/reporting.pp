@@ -7,7 +7,7 @@ class accountfacts::reporting (
   include stdlib
   validate_absolute_path($install_path)
   
-  file { $install_path :
+  file { "${install_path}/accountfacts.reporting.rb" :
     mode   => '0750',
     owner  => $user,
     group  => $group,
