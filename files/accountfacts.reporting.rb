@@ -11,13 +11,14 @@
 
 require 'rest-client'
 require 'optparse'
+require 'csv'
 require 'erb'
 
 options = {}
 using_ssl_connection = false
 REPORTS = %w(user-reports group-reports)
 REPORT_ALIASES = { 'ur' => 'user-reports', 'gr' => 'group-reports' }
-REPORT_FORMATS = %w(html json)
+REPORT_FORMATS = %w(html json csv)
 SORT_MODE = %w(name id)
 
 class PdbConnection
@@ -126,7 +127,13 @@ class UserAccounts
         'descriptions' => a[1].collect { |b| b['description'] }.uniq.sort!)
     end
     out.compact!
-    sort_key = sort_mode == "id" ? "uid" : "uname"
+    sort_key = sort_mode == 'id' ? 'uid' : 'uname'
+    out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
+  end
+
+  def denormalize_data(sort_mode)
+    out = @accounts.collect(&:to_hash)
+    sort_key = sort_mode == 'id' ? 'uid' : 'uname'
     out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
   end
 end
@@ -181,7 +188,7 @@ class UserGroups
   def load_from_UserAccounts(users)
     users.each do |user|
       result = @groups.find { |a| a.source_node == user.source_node && a.gid == user.primary_gid }
-      result.members.push("*#{user.uname}") if !result.nil?
+      result.members.push("*#{user.uname}") unless result.nil?
     end
   end
 
@@ -202,7 +209,16 @@ class UserGroups
     out = out.group_by { |a| { 'gid' => a['gid'], 'name' => a['name'] } }.collect do |a|
       a[0].merge('membership' => a[1].collect { |b| b['membership'] })
     end
-    sort_key = sort_mode == "id" ? "gid" : "name"
+    sort_key = sort_mode == 'id' ? 'gid' : 'name'
+    out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
+  end
+
+  def denormalize_data(sort_mode)
+    max_member_columns = @groups.max_by { |a| a.members.size }.members.uniq.size
+    out = @groups.collect(&:to_hash)
+    out.collect { |a| (0..max_member_columns - 1).collect { |b| a["Member_#{b}"] = a['members'][b] } }
+    out.collect { |a| a.delete('members') }
+    sort_key = sort_mode == 'id' ? 'gid' : 'name'
     out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
   end
 end
@@ -211,6 +227,16 @@ module JsonReport
   def self.print_report(name, input)
     wrapped_input = { 'Report name' => name, 'Run on' => Time.now, 'Run by' => Etc.getlogin, 'Report data' => input }
     puts JSON.pretty_generate(wrapped_input)
+  end
+end
+
+module CSVReport
+  def self.print_report(input)
+    out = CSV.generate(force_quotes: true) do |csv|
+      csv << input.first.keys
+      input.each { |a| csv << a.values }
+    end
+    out
   end
 end
 
@@ -510,12 +536,14 @@ output = ''
 case options[:report]
 when 'user-reports'
   case options[:report_format]
+  when 'csv' then output = CSVReport.print_report(user_account_facts.denormalize_data(options[:sort_mode]))
   when 'json' then output = JsonReport.print_report('User Account Data', user_account_facts.normalize_data(options[:sort_mode]))
   when 'html' then output = HtmlReport.new('User Account Data', user_account_facts.normalize_data(options[:sort_mode])).result
   end
 when 'group-reports'
   group_account_facts.load_from_UserAccounts(user_account_facts)
   case options[:report_format]
+  when 'csv' then output = CSVReport.print_report(group_account_facts.denormalize_data(options[:sort_mode]))
   when 'json' then output = JsonReport.print_report('Group Data', group_account_facts.normalize_data(options[:sort_mode]))
   when 'html' then output = HtmlReport.new('Group Data', group_account_facts.normalize_data(options[:sort_mode])).result
   end
