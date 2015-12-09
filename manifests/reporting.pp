@@ -11,6 +11,6 @@ class accountfacts::reporting (
     mode   => '0750',
     owner  => $user,
     group  => $group,
-    source => 'puppet:///modules/puppet-accountfacts/accountfacts.reporting.rb'
+    source => 'puppet:///modules/accountfacts/accountfacts.reporting.rb'
   }
 }
