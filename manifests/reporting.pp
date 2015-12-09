@@ -8,6 +8,17 @@ class accountfacts::reporting (
   validate_absolute_path($install_path)
   
   if ! defined(Package['ruby']) { package { 'ruby': ensure => installed, } }
+  case $::osfamily{
+    'redhat', 'suse': {
+      if ! defined(Package['ruby-devel']) { package { 'ruby-devel': ensure => installed, } }
+    }
+    'debian:' {
+      if ! defined(Package['ruby-dev']) { package { 'ruby-dev': ensure => installed, } }
+    }
+    default: {
+      notice("Ruby-dev package needed for native extension compilation, but the package name couldn't be resolved for os: ${::osfamily}")
+    }
+  }
   if ! defined(Package['rubygems']) { package { 'rubygems': ensure => installed, } }
   if ! defined(Package['Rest-client']) { package { 'rest-client': ensure => installed, provider => 'gem',} }
   
