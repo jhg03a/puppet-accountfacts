@@ -20,22 +20,28 @@ REPORTS = %w(user-reports group-reports)
 REPORT_ALIASES = { 'ur' => 'user-reports', 'gr' => 'group-reports' }
 REPORT_FORMATS = %w(html json csv)
 SORT_MODE = %w(name id)
+output = ''
 
+# Performs PuppetDB interactions and returns json objects
 class PdbConnection
+  # Minimal configuration assumes puppetmaster localhost deployment
+  # Advanced configuration supports remote execution with proper SSL certs
   def initialize(base_url = 'http://localhost:8080/pdb/query/v4',
                  using_ssl_connection = false,
                  client_cert = nil, client_key = nil, ca_cert = nil)
     @base_url = base_url
     @using_ssl_connection = using_ssl_connection
-    @url = base_url
 
     @client_cert = client_cert.nil? ? nil : OpenSSL::X509::Certificate.new(File.read(client_cert))
     @client_key = client_key.nil? ? nil : OpenSSL::PKey::RSA.new(File.read(client_key))
     @ca_cert = ca_cert.nil? ? nil : ca_cert
   end
 
+  # Provides execution of REST query
   def request(pdb_endpoint, query)
     rest_client = RestClient::Request
+    # Build puppet query URL
+    # Also sanitizes query string for you so it can be provided in human readable formats
     url = @base_url + pdb_endpoint + '?' + URI.encode_www_form('query' => query)
     response = nil
     begin
@@ -47,6 +53,7 @@ class PdbConnection
     else
       response = rest_client.execute(method: :get, url: url, headers: { accept: '*/*' })
     end
+    # Handle bad queries or unknown exceptions because they are highly likely here
   rescue RestClient::InternalServerError => e
     puts e.inspect
     puts 'Query URL:' + URI.unescape(url)
@@ -59,11 +66,14 @@ class PdbConnection
 
     response = JSON.parse(response)
 
+    # Empty responses are not helpful
     fail Exception, 'Empty response returned' if response.empty? || response.nil?
 
     response
   end
 end
+
+# Container class for user account data
 class UserAccounts
   attr_accessor :accounts
   include Enumerable
@@ -76,6 +86,7 @@ class UserAccounts
     @accounts.each(&block)
   end
 
+  # User account data returned from the accountfacts_users puppet custom structured fact
   class UserAccount
     attr_accessor :uid, :primary_gid, :uname, :shell, :home_dir, :description, :source_node
     def to_hash
@@ -90,11 +101,14 @@ class UserAccounts
     end
   end
 
+  # Populate @accounts from query response
   def load_from_response(response)
     all_source_node_names = response.map { |a| a['certname'] }.uniq
 
     all_source_node_names.each do|node_name|
       node_entries = response.select { |a| a['certname'] == node_name }
+      # PuppetDB assigns accountfacts_users a unique array index which doesn't align with anything in the user itself
+      # This index is what makes reassembling the user data difficult in a pure puppetdb query
       user_indexes = node_entries.map { |a| a['path'][1] }.uniq
       user_indexes.each do|user_index|
         user_entries = node_entries.select { |a| a['path'][1] == user_index }
@@ -111,6 +125,7 @@ class UserAccounts
     end
   end
 
+  # Return an array of hashes which are a normalized form of @accounts
   def normalize_data(sort_mode)
     accounts_grouped = @accounts.collect(&:to_hash).group_by do|a|
       { 'uname' => a['uname'],
@@ -131,6 +146,7 @@ class UserAccounts
     out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
   end
 
+  # Some report formats can't handle normalized data and need it fully expanded with duplicates
   def denormalize_data(sort_mode)
     out = @accounts.collect(&:to_hash)
     sort_key = sort_mode == 'id' ? 'uid' : 'uname'
@@ -138,6 +154,7 @@ class UserAccounts
   end
 end
 
+# Container class for node group data
 class UserGroups
   attr_accessor :groups
   include Enumerable
@@ -150,6 +167,7 @@ class UserGroups
     @groups.each(&block)
   end
 
+  # Group account data returned from accountfacts_groups puppet custom structured fact
   class UserGroup
     attr_accessor :gid, :name, :members, :source_node
 
@@ -160,16 +178,17 @@ class UserGroups
         'source_node' =>  @source_node,
         'members' => @members.uniq.sort!
       }
-      out['members'].sort!
       out
     end
   end
-
+  # Populate @groups from query response
   def load_from_response(response)
     all_source_node_names = response.map { |a| a['certname'] }.uniq
 
     all_source_node_names.each do |node_name|
       node_entries = response.select { |a| a['certname'] == node_name }
+      # PuppetDB assigns accountfacts_groups a unique array index which doesn't align with anything in the group itself
+      # This index is what makes reassembling the group data difficult in a pure puppetdb query
       group_indexes = node_entries.map { |a| a['path'][1] }.uniq
       group_indexes.each do |group_index|
         group_entries = node_entries.select { |a| a['path'][1] == group_index }
@@ -185,13 +204,17 @@ class UserGroups
     end
   end
 
-  def load_from_UserAccounts(users)
+  # Populate @groups with additional data retrieved from accountfacts_users
+  # User primary gids are not modeled in /etc/group
+  def load_from_useraccounts(users)
     users.each do |user|
       result = @groups.find { |a| a.source_node == user.source_node && a.gid == user.primary_gid }
+      # Append a star to the username so we can diffrentiate the primary gid from regular memberships
       result.members.push("*#{user.uname}") unless result.nil?
     end
   end
 
+  # Provides an array of hashes representing a normalized form of the group data
   def normalize_data(sort_mode)
     groups_grouped = @groups.collect(&:to_hash).group_by do|a|
       { 'gid' => a['gid'],
@@ -213,25 +236,32 @@ class UserGroups
     out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
   end
 
+  # Some report formats can't handle normalized data and need it fully expanded with duplicates
   def denormalize_data(sort_mode)
+    # Since members are stored in a subarray, we have to compute the needed number of columns and populate them
     max_member_columns = @groups.max_by { |a| a.members.size }.members.uniq.size
     out = @groups.collect(&:to_hash)
     out.collect { |a| (0..max_member_columns - 1).collect { |b| a["Member_#{b}"] = a['members'][b] } }
+    # Having expanded the members data, delete the original form since it's not needed or probably parseable meaningfully
     out.collect { |a| a.delete('members') }
     sort_key = sort_mode == 'id' ? 'gid' : 'name'
     out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
   end
 end
 
+# Provides a JSON formatted report
 module JsonReport
   def self.print_report(name, input)
+    # Add some report metadata so you know when and by whom a report was run
     wrapped_input = { 'Report name' => name, 'Run on' => Time.now, 'Run by' => Etc.getlogin, 'Report data' => input }
     puts JSON.pretty_generate(wrapped_input)
   end
 end
 
+# Provides a CSV formatted report
 module CSVReport
   def self.print_report(input)
+    # No metadata is provided because the CSV format doesn't have a way model it without messing with column meanings or bloating columns
     out = CSV.generate(force_quotes: true) do |csv|
       csv << input.first.keys
       input.each { |a| csv << a.values }
@@ -240,8 +270,12 @@ module CSVReport
   end
 end
 
+# Provides a filtered HTML formatted report
+# Use ERB to handle some of the HTML boiler plate, formatting, and javascript
 class HtmlReport < ERB
+  # To provide a search box in the html output I used a 3rd-party library
   module LightJavascriptTableFilter
+    # Returns a copy of the licensing agreement for this code
     def self.third_party_license
       "<!--
 Copyright (c) 2015 by Chris Coyier (http://codepen.io/chriscoyier/pen/tIuBL)
@@ -254,6 +288,8 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
 -->"
     end
 
+    # Returns a the needed javascript to provide a filter for the output making searching easier
+    # This is across the entire report, not a specific column
     def self.third_party_js
       "(function(document) {
   'use strict';
@@ -297,6 +333,8 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
     end
   end
 
+  # Returns the HTML wrapped report contents
+  # This is recursively called to handle sub-arrays, etc.
   def convert_array(arr)
     return '' if arr.nil?
     result = ''
@@ -319,33 +357,31 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
         end
         result << '</ul>'
       when Hash
-        result << '<span class="ReportCSSChildTable ReportCSS"><table>'
-        result << '<thead>'
-        result << '<tr>'
+        # Change the formatting of sub-tables for easier viewing
+        result << '<span class="ReportCSSChildTable ReportCSS"><table><thead><tr>'
         arr.first.keys.each { |a| result << "<td>#{convert_array(a)}</td>" }
-        result << '</tr>'
-        result << '</thead>'
-        result << '<tbody>'
+        result << '</tr></thead><tbody>'
         arr.each do|a|
           result << '<tr>'
           a.values.each { |b| result << "<td>#{convert_array(b)}</td>" }
           result << '</tr>'
         end
-        result << '</tbody>'
-        result << '</table></span>'
+        result << '</tbody></table></span>'
       else
         result << 'Unknown value!!'
       end
     else
       result << 'Unknown value!'
-  end
+    end
   end
 
+  # Provides a wrapped HTML row in the final report
   def convert_row(row_hash)
     result = ''
     row_hash.each_value do|col|
       result << '<td>'
       case col
+      # Handle simple columns here, pass off more complex ones
       when String, Fixnum then result << col.to_s
       when NilClass then result << ''
       when Array then result << convert_array(col)
@@ -357,6 +393,7 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
     result
   end
 
+  # Returns the ERB template for the HTML report
   def self.template
     "
     <!DOCTYPE html><html>
@@ -388,7 +425,8 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
         color:#000000;
       }
       .ReportCSS thead tr:first-child td{
-          background:-o-linear-gradient(bottom, #7f00ff 5%, #3f007f 100%);	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #7f00ff), color-stop(1, #3f007f) );
+        background:-o-linear-gradient(bottom, #7f00ff 5%, #3f007f 100%);
+        background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #7f00ff), color-stop(1, #3f007f) );
         background:-moz-linear-gradient( center top, #7f00ff 5%, #3f007f 100% );
 
         background-color:#7f00ff;
@@ -406,7 +444,8 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
         margin-bottom: 0px;
       }
       .ReportCSSChildTable thead tr:first-child td{
-          background:-o-linear-gradient(bottom, #3f579f 5%, #00207f 100%);	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #3f579f), color-stop(1, #00207f) );
+        background:-o-linear-gradient(bottom, #3f579f 5%, #00207f 100%);
+        background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #3f579f), color-stop(1, #00207f) );
         background:-moz-linear-gradient( center top, #3f579f 5%, #00207f 100% );
 
         padding-top: 4px;
@@ -438,6 +477,7 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
     "
   end
 
+  # Create ERB instance and load template
   def initialize(name, input = {}, options = {})
     @name = name
     @input = input
@@ -445,11 +485,13 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
     super(@template)
   end
 
+  # Render ERB Template
   def result
     super(binding)
   end
 end
 
+# Handle CLI switches
 OptionParser.new do |opts|
   opts.banner = 'Usage: accountfacts.reporting.rb [options]'
 
@@ -496,6 +538,7 @@ OptionParser.new do |opts|
   end
 end.parse!
 
+# Provide some basic assertion checking on input
 if options[:pdb].nil?
   fail OptionParser::MissingArgument, 'No URL parameter provided'
 end
@@ -520,19 +563,22 @@ unless options[:pdb].end_with? '/pdb/query/v4/'
   options[:pdb] = options[:pdb] + '/pdb/query/v4/'
 end
 
+# If no filter is provided, use a generic catchall to not filter anything
 filter = options[:query_filter].nil? ? '["select_fact_contents", ["~", "certname", ".*"]]' : options[:query_filter]
 
+# Assemble queries
 accountfacts_user_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_users"], ["in", "certname", ["extract", "certname", ' + filter + ']]]]]'
 accountfacts_group_query = '["extract",["certname","path","value"],["and", ["=", "name", "accountfacts_groups"], ["in", "certname", ["extract", "certname", ' + filter + ']]]]]'
 
 user_account_facts = UserAccounts.new
 group_account_facts = UserGroups.new
 
+# Execute queries and populate containers
 pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
 user_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_user_query))
 group_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_group_query))
 
-output = ''
+# Collect report output
 case options[:report]
 when 'user-reports'
   case options[:report_format]
@@ -541,11 +587,13 @@ when 'user-reports'
   when 'html' then output = HtmlReport.new('User Account Data', user_account_facts.normalize_data(options[:sort_mode])).result
   end
 when 'group-reports'
-  group_account_facts.load_from_UserAccounts(user_account_facts)
+  group_account_facts.load_from_useraccounts(user_account_facts)
   case options[:report_format]
   when 'csv' then output = CSVReport.print_report(group_account_facts.denormalize_data(options[:sort_mode]))
   when 'json' then output = JsonReport.print_report('Group Data', group_account_facts.normalize_data(options[:sort_mode]))
   when 'html' then output = HtmlReport.new('Group Data', group_account_facts.normalize_data(options[:sort_mode])).result
   end
 end
+
+# Dump output to stdout so it can be redirected or piped to other locations outside the script itself
 puts output
