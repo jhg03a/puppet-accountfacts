@@ -72,7 +72,7 @@ class UserAccounts
   def initialize
     @accounts = []
   end
-  
+
   def each(&block)
     @accounts.each(&block)
   end
@@ -135,15 +135,15 @@ end
 class UserGroups
   attr_accessor :groups
   include Enumerable
-  
+
   def initialize
     @groups = []
   end
-  
+
   def each(&block)
     @groups.each(&block)
   end
-  
+
   class UserGroup
     attr_accessor :gid, :name, :members, :source_node
 
@@ -178,11 +178,11 @@ class UserGroups
       end
     end
   end
-  
+
   def load_from_UserAccounts(users)
-    users.each{ |user|
-      @groups.find{|a| a.source_node == user.source_node && a.gid == user.primary_gid}.members.push("*#{user.uname}")
-    }
+    users.each do |user|
+      @groups.find { |a| a.source_node == user.source_node && a.gid == user.primary_gid }.members.push("*#{user.uname}")
+    end
   end
 
   def normalize_data
@@ -273,7 +273,6 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
   def convert_array(arr)
     return '' if arr.nil?
     result = ''
-    # binding.pry
     case arr
     when String, Fixnum then result << arr.to_s
     when NilClass then result << ''
@@ -282,7 +281,7 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
       when String, Fixnum
         result << '<ul>'
         arr.each do |a|
-          result << "<li>#{convert_array(a)}</li>"
+          result << "<li>#{convert_array(a)}</li>" unless a.empty?
         end
         result << '</ul>'
       when NilClass then result << ''
@@ -311,7 +310,6 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
         result << 'Unknown value!!'
       end
     else
-      binding.pry
       result << 'Unknown value!'
   end
   end
