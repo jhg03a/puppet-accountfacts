@@ -19,6 +19,7 @@ class accountfacts::reporting (
       notice("Ruby-dev package needed for native extension compilation, but the package name couldn't be resolved for os: ${::osfamily}")
     }
   }
+  if ! defined(Package['g++']) { package { 'g++': ensure => installed, } }
   if ! defined(Package['rubygems']) { package { 'rubygems': ensure => installed, } }
   if ! defined(Package['Rest-client']) { package { 'rest-client': ensure => installed, provider => 'gem',} }
   
