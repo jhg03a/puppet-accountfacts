@@ -67,9 +67,14 @@ class PdbConnection
 end
 class UserAccounts
   attr_accessor :accounts
+  include Enumerable
 
   def initialize
     @accounts = []
+  end
+  
+  def each(&block)
+    @accounts.each(&block)
   end
 
   class UserAccount
@@ -129,11 +134,16 @@ end
 
 class UserGroups
   attr_accessor :groups
-
+  include Enumerable
+  
   def initialize
     @groups = []
   end
-
+  
+  def each(&block)
+    @groups.each(&block)
+  end
+  
   class UserGroup
     attr_accessor :gid, :name, :members, :source_node
 
@@ -167,6 +177,12 @@ class UserGroups
         @groups << group
       end
     end
+  end
+  
+  def load_from_UserAccounts(users)
+    users.each{ |user|
+      @groups.find{|a| a.source_node == user.source_node && a.gid == user.primary_gid}.members.push("*#{user.uname}")
+    }
   end
 
   def normalize_data
@@ -495,6 +511,7 @@ when 'user-reports'
   when 'html' then output = HtmlReport.new('User Account Data', user_account_facts.normalize_data).result
   end
 when 'group-reports'
+  group_account_facts.load_from_UserAccounts(user_account_facts)
   case options[:report_format]
   when 'json' then output = JsonReport.print_report('Group Data', group_account_facts.normalize_data)
   when 'html' then output = HtmlReport.new('Group Data', group_account_facts.normalize_data).result
