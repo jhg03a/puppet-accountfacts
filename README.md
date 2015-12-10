@@ -42,6 +42,7 @@ Because writing the puppetDB queries for this information is problematic, I've w
 
 When running the reporting script, it should be something like this (complicated example):
 > sudo ruby accountfacts.reporting.rb --url "https://puppet.domain.com:8081" --ssl\_client\_cert /etc/puppetlabs/puppet/ssl/certs/puppetclient.pem --ssl\_client\_key /etc/puppetlabs/puppet/ssl/private\_keys/puppetclient.pem --ssl_ca_cert /etc/puppetlabs/puppet/ssl/certs/ca.pem --report gr --sort\_mode id --report\_format html --filter\_report '["select\_fact\_contents",["and",["=","name","kernel"],["=","value","Linux"]]]'
+
 For full documentation use the -h argument on the command line.
 
 ## Reference
