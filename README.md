@@ -75,6 +75,7 @@ The user running your puppet agent should have sufficient access.  If someone ha
 
 ## Changelog
 
+- v1.2.0 - Added reporting script and reporting installation puppet subclass
 - v1.1.2 - Bugfix for specific code breaking OSX & Linux
 - v1.1.1 - Bugfix for windows user and group output
 - v1.1.0 - Added OSX & Windows support (may have also added solaris & aix as well)
