@@ -9,7 +9,8 @@ class accountfacts::reporting (
   
   # Leaving it up to other code to manage ruby versions, gems, etc.
   # Needed rubygems: rest-client
-  # Minimum ruby version > 1.9.2
+  # Minimum ruby version > 1.9.2 (by definition of rest-client, tested with 2.0.0)
+  # Consider puppet modules such as maestrodev/rvm or puppetlabs/ruby
   
   file { $install_path :
     ensure => 'directory',
