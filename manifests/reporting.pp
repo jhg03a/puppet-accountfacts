@@ -7,22 +7,9 @@ class accountfacts::reporting (
   include stdlib
   validate_absolute_path($install_path)
   
-  if ! defined(Package['ruby']) { package { 'ruby': ensure => installed, } }
-  case $::osfamily{
-    'redhat', 'suse': {
-      if ! defined(Package['ruby-devel']) { package { 'ruby-devel': ensure => installed, } }
-      if ! defined(Package['gcc-c++']) { package { 'gcc-c++': ensure => installed, } }
-    }
-    'debian': {
-      if ! defined(Package['ruby-dev']) { package { 'ruby-dev': ensure => installed, } }
-      if ! defined(Package['g++']) { package { 'g++': ensure => installed, } }
-    }
-    default: {
-      notice("Ruby-dev & g++ packages needed for native extension compilation, but the package name couldn't be resolved for os: ${::osfamily}")
-    }
-  }
-  if ! defined(Package['rubygems']) { package { 'rubygems': ensure => installed, } }
-  if ! defined(Package['Rest-client']) { package { 'rest-client': ensure => installed, provider => 'gem',} }
+  # Leaving it up to other code to manage ruby versions, gems, etc.
+  # Needed rubygems: rest-client
+  # Minimum ruby version > 1.9.2
   
   file { $install_path :
     ensure => 'directory',
