@@ -13,6 +13,10 @@ require 'rest-client'
 require 'optparse'
 require 'csv'
 require 'erb'
+require 'logger'
+
+$logger = Logger.new(STDERR)
+$logger.level = Logger::DEBUG
 
 options = {}
 using_ssl_connection = false
@@ -32,6 +36,8 @@ class PdbConnection
     @base_url = base_url
     @using_ssl_connection = using_ssl_connection
 
+    @client_cert_file = client_cert
+    @client_key_file = client_key
     @client_cert = client_cert.nil? ? nil : OpenSSL::X509::Certificate.new(File.read(client_cert))
     @client_key = client_key.nil? ? nil : OpenSSL::PKey::RSA.new(File.read(client_key))
     @ca_cert = ca_cert.nil? ? nil : ca_cert
@@ -44,6 +50,19 @@ class PdbConnection
     # Also sanitizes query string for you so it can be provided in human readable formats
     url = @base_url + pdb_endpoint + '?' + URI.encode_www_form('query' => query)
     response = nil
+    $logger.debug("URL: #{URI.unescape(url)}")
+    $logger.debug("Client Cert: \n#{@client_cert_file}")
+    $logger.debug("Client Key: \n#{@client_key_file}")
+    $logger.debug("CA Cert: \n#{@ca_cert}")
+    $logger.debug("Using SSL: #{@using_ssl_connection.to_s}")
+    if @using_ssl_connection
+      #$logger.debug("Manual Query: curl '#{URI.unescape(url)}' --tlsv1 --cacert #{@ca_cert} --cert #{@client_cert_file} --key #{@client_key_file}")
+      $logger.debug("Manual Query: curl '#{@base_url + pdb_endpoint}' --data-urlencode '#{query}' --tlsv1 --cacert #{@ca_cert} --cert #{@client_cert_file} --key #{@client_key_file}")
+    else
+      #$logger.debug("Manual Query: curl '#{URI.unescape(url)}'")
+      $logger.debug("Manual Query: curl '#{@base_url + pdb_endpoint}' --data-urlencode '#{query}'")
+    end
+    
     begin
     if @using_ssl_connection
       response = rest_client.execute(method: :get, url: url, headers: { accept: '*/*' },
@@ -65,6 +84,7 @@ class PdbConnection
   end
 
     response = JSON.parse(response)
+    $logger.debug("Response: #{response}")
 
     # Empty responses are not helpful
     fail Exception, 'Empty response returned' if response.empty? || response.nil?
@@ -105,12 +125,13 @@ class UserAccounts
   def load_from_response(response)
     all_source_node_names = response.map { |a| a['certname'] }.uniq
 
-    all_source_node_names.each do|node_name|
+    all_source_node_names.each_with_index do |node_name,node_name_index|
+      $logger.info("Processing user input from #{node_name} (#{node_name_index} of #{all_source_node_names.size})")
       node_entries = response.select { |a| a['certname'] == node_name }
       # PuppetDB assigns accountfacts_users a unique array index which doesn't align with anything in the user itself
       # This index is what makes reassembling the user data difficult in a pure puppetdb query
       user_indexes = node_entries.map { |a| a['path'][1] }.uniq
-      user_indexes.each do|user_index|
+      user_indexes.each_with_index do|user_index, user_index_index|
         user_entries = node_entries.select { |a| a['path'][1] == user_index }
         user = UserAccounts::UserAccount.new
         user.uid = user_entries.find { |a| a['path'][2] == 'uid' }['value']
@@ -120,6 +141,7 @@ class UserAccounts
         user.home_dir = user_entries.find { |a| a['path'][2] == 'homedir' }['value']
         user.description = user_entries.find { |a| a['path'][2] == 'description' }['value']
         user.source_node = node_name
+        $logger.debug("Processed on #{node_name} (#{node_name_index} of #{all_source_node_names.size}) user name: #{user.uname} (#{user_index_index+1} of #{user_indexes.size})")
         @accounts << user
       end
     end
@@ -127,6 +149,7 @@ class UserAccounts
 
   # Return an array of hashes which are a normalized form of @accounts
   def normalize_data(sort_mode)
+    $logger.info('Normalizing user data...')
     accounts_grouped = @accounts.collect(&:to_hash).group_by do|a|
       { 'uname' => a['uname'],
         'uid' => a['uid'],
@@ -148,6 +171,7 @@ class UserAccounts
 
   # Some report formats can't handle normalized data and need it fully expanded with duplicates
   def denormalize_data(sort_mode)
+    $logger.info('Denormalizing user data...')
     out = @accounts.collect(&:to_hash)
     sort_key = sort_mode == 'id' ? 'uid' : 'uname'
     out.sort! { |a, b| a[sort_key] <=> b[sort_key] }
@@ -185,12 +209,13 @@ class UserGroups
   def load_from_response(response)
     all_source_node_names = response.map { |a| a['certname'] }.uniq
 
-    all_source_node_names.each do |node_name|
+    all_source_node_names.each_with_index do |node_name,node_name_index|
+      $logger.info("Processing group input from #{node_name} (#{node_name_index} of #{all_source_node_names.size})")
       node_entries = response.select { |a| a['certname'] == node_name }
       # PuppetDB assigns accountfacts_groups a unique array index which doesn't align with anything in the group itself
       # This index is what makes reassembling the group data difficult in a pure puppetdb query
       group_indexes = node_entries.map { |a| a['path'][1] }.uniq
-      group_indexes.each do |group_index|
+      group_indexes.each_with_index do |group_index, group_index_index|
         group_entries = node_entries.select { |a| a['path'][1] == group_index }
         group = UserGroups::UserGroup.new
         group.gid = group_entries.find { |a| a['path'][2] == 'gid' }['value']
@@ -199,6 +224,7 @@ class UserGroups
         group_entries.select { |a| a['path'][2] == 'members' }.each { |a| members << a['value'] }
         group.members = members
         group.source_node = node_name
+        $logger.debug("Processed on #{node_name} (#{node_name_index} of #{all_source_node_names.size}) group name: #{group.name} (#{group_index_index+1} of #{group_indexes.size})")
         @groups << group
       end
     end
@@ -207,6 +233,7 @@ class UserGroups
   # Populate @groups with additional data retrieved from accountfacts_users
   # User primary gids are not modeled in /etc/group
   def load_from_useraccounts(users)
+    $logger.info("Merging in primary group memberships...")
     users.each do |user|
       result = @groups.find { |a| a.source_node == user.source_node && a.gid == user.primary_gid }
       # Append a star to the username so we can diffrentiate the primary gid from regular memberships
@@ -216,6 +243,7 @@ class UserGroups
 
   # Provides an array of hashes representing a normalized form of the group data
   def normalize_data(sort_mode)
+    $logger.info('Normalizing group data...')
     groups_grouped = @groups.collect(&:to_hash).group_by do|a|
       { 'gid' => a['gid'],
         'name' => a['name'],
@@ -238,6 +266,7 @@ class UserGroups
 
   # Some report formats can't handle normalized data and need it fully expanded with duplicates
   def denormalize_data(sort_mode)
+    $logger.info('Denormalizing group data...')
     # Since members are stored in a subarray, we have to compute the needed number of columns and populate them
     max_member_columns = @groups.max_by { |a| a.members.uniq.size }.members.uniq.size
     out = @groups.collect(&:to_hash)
@@ -575,7 +604,11 @@ group_account_facts = UserGroups.new
 
 # Execute queries and populate containers
 pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
+$logger.debug("Query filter(user): #{accountfacts_user_query}")
+$logger.debug("Query filter(group): #{accountfacts_group_query}")
+$logger.info("Requesting User Data...")
 user_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_user_query))
+$logger.info("Requesting Group Data...")
 group_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_group_query))
 
 # Collect report output
