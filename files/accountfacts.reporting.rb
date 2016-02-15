@@ -23,6 +23,7 @@ using_ssl_connection = false
 REPORTS = %w(user-reports group-reports)
 REPORT_ALIASES = { 'ur' => 'user-reports', 'gr' => 'group-reports' }
 REPORT_FORMATS = %w(html json csv)
+LOGLEVELS = %w(debug info warning error fatal unknown)
 SORT_MODE = %w(name id)
 output = ''
 
@@ -560,6 +561,10 @@ OptionParser.new do |opts|
   opts.on('--sort_mode SORT_MODE', SORT_MODE, "Select Sorting Primary Key:   (#{SORT_MODE.join(',')})") do |sort_mode|
     options[:sort_mode] = sort_mode
   end
+  
+  opts.on('--loglevel LOGLEVEL', LOGLEVELS, "Select Loglevel (default warn):   (#{LOGLEVELS.join(',')})") do |loglevel|
+    options[:loglevel] = loglevel
+  end
 
   opts.on('-h', '--help', 'Show this message') do
     puts opts
@@ -586,6 +591,24 @@ unless options[:client_cert].nil? && options[:client_key].nil? && options[:ca_ce
   fail ArgumentError, "File not found: #{options[:client_cert]}" unless File.file?(options[:client_cert])
   fail ArgumentError, "File not found: #{options[:client_key]}" unless File.file?(options[:client_key])
   fail ArgumentError, "File not found: #{options[:ca_cert]}" unless File.file?(options[:ca_cert])
+end
+
+$logger = Logger.new(STDERR)
+case options[:loglevel]
+when 'debug'
+  $logger.level = Logger::DEBUG
+when 'info'
+  $logger.level = Logger::INFO
+when 'warn', NilClass
+  $logger.level = Logger::WARN
+when 'error'
+  $logger.level = Logger::ERROR
+when 'fatal'
+  $logger.level = Logger::FATAL
+when 'unknown'
+  $logger.level = Logger::UNKNOWN
+else
+  fail ArgumentError, 'Invalid loglevel defined'
 end
 
 unless options[:pdb].end_with? '/pdb/query/v4/'
