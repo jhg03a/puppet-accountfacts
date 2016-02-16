@@ -269,7 +269,7 @@ class UserGroups
     # Since members are stored in a subarray, we have to compute the needed number of columns and populate them
     max_member_columns = @groups.max_by { |a| a.members.uniq.size }.members.uniq.size
     out = @groups.collect(&:to_hash)
-    out.collect { |a| (0..max_member_columns - 1).collect { |b| a["Member_#{b}"] = a['members'][b] } }
+    out.collect { |a| (0..[max_member_columns,a['members'].size].min - 1).collect { |b| a["Member_#{b}"] = a['members'][b] } }
     # Having expanded the members data, delete the original form since it's not needed or probably parseable meaningfully
     out.collect { |a| a.delete('members') }
     sort_key = sort_mode == 'id' ? 'gid' : 'name'
@@ -291,7 +291,7 @@ module CSVReport
   def self.print_report(input)
     # No metadata is provided because the CSV format doesn't have a way model it without messing with column meanings or bloating columns
     out = CSV.generate(force_quotes: true) do |csv|
-      csv << input.first.keys
+      csv << input.max_by{|a| a.keys}.keys
       input.each { |a| csv << a.values }
     end
     out
