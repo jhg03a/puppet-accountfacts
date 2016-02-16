@@ -558,7 +558,7 @@ OptionParser.new do |opts|
     options[:sort_mode] = sort_mode
   end
   
-  opts.on('--loglevel LOGLEVEL', LOGLEVELS, "Select Loglevel (default warn):   (#{LOGLEVELS.join(',')})") do |loglevel|
+  opts.on('--loglevel LOGLEVEL', LOGLEVELS, "Select Loglevel (default warn):   (#{LOGLEVELS.join(',')}).  Outputs to STDERR.") do |loglevel|
     options[:loglevel] = loglevel
   end
   
