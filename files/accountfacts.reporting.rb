@@ -55,11 +55,9 @@ class PdbConnection
     $logger.debug("CA Cert: \n#{@ca_cert}")
     $logger.debug("Using SSL: #{@using_ssl_connection.to_s}")
     if @using_ssl_connection
-      #$logger.debug("Manual Query: curl '#{URI.unescape(url)}' --tlsv1 --cacert #{@ca_cert} --cert #{@client_cert_file} --key #{@client_key_file}")
-      $logger.debug("Manual Query: curl '#{@base_url + pdb_endpoint}' --data-urlencode '#{query}' --tlsv1 --cacert #{@ca_cert} --cert #{@client_cert_file} --key #{@client_key_file}")
+      $logger.debug("Manual Query: curl -X GET -H 'Content-Type:application/json' '#{@base_url + pdb_endpoint}' --data-urlencode '#{query}' --tlsv1 --cacert #{@ca_cert} --cert #{@client_cert_file} --key #{@client_key_file}")
     else
-      #$logger.debug("Manual Query: curl '#{URI.unescape(url)}'")
-      $logger.debug("Manual Query: curl '#{@base_url + pdb_endpoint}' --data-urlencode '#{query}'")
+      $logger.debug("Manual Query: curl -X GET -H 'Content-Type:application/json' '#{@base_url + pdb_endpoint}' --data-urlencode '#{query}'")
     end
     
     begin
