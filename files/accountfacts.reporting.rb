@@ -14,9 +14,7 @@ require 'optparse'
 require 'csv'
 require 'erb'
 require 'logger'
-
-$logger = Logger.new(STDERR)
-$logger.level = Logger::DEBUG
+require 'pstore'
 
 options = {}
 using_ssl_connection = false
@@ -565,6 +563,10 @@ OptionParser.new do |opts|
   opts.on('--loglevel LOGLEVEL', LOGLEVELS, "Select Loglevel (default warn):   (#{LOGLEVELS.join(',')})") do |loglevel|
     options[:loglevel] = loglevel
   end
+  
+  opts.on('--use_cache', "Enables the reuse of the last puppet query.  Useful for multiple format requirements or debugging.") do |use_cache|
+    options[:use_cache] = use_cache
+  end
 
   opts.on('-h', '--help', 'Show this message') do
     puts opts
@@ -625,14 +627,36 @@ accountfacts_group_query = '["extract",["certname","path","value"],["and", ["=",
 user_account_facts = UserAccounts.new
 group_account_facts = UserGroups.new
 
-# Execute queries and populate containers
-pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
-$logger.debug("Query filter(user): #{accountfacts_user_query}")
-$logger.debug("Query filter(group): #{accountfacts_group_query}")
-$logger.info("Requesting User Data...")
-user_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_user_query))
-$logger.info("Requesting Group Data...")
-group_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_group_query))
+store = PStore.new('accountfacts.cache.pstore')
+cached_user_query = store.transaction { store[:user_query] }
+cached_group_query = store.transaction { store[:group_query] }
+cached_users = store.transaction { store[:users] }
+cached_groups = store.transaction { store[:groups] }
+
+if !cached_users.nil? and !cached_groups.nil? and options[:use_cache]
+  $logger.info("Loading cached data from previous run...")
+  user_account_facts = store.transaction { store[:users] }
+  group_account_facts = store.transaction { store[:groups] }
+else
+  if options[:use_cache]
+    $logger.warn('Could not load existing cache data!')
+  end
+  # Execute queries and populate containers
+  pdb_connection = PdbConnection.new(options[:pdb], using_ssl_connection, options[:client_cert], options[:client_key], options[:ca_cert])
+  $logger.debug("Query filter(user): #{accountfacts_user_query}")
+  $logger.debug("Query filter(group): #{accountfacts_group_query}")
+  $logger.info("Requesting User Data...")
+  user_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_user_query))
+  $logger.info("Requesting Group Data...")
+  group_account_facts.load_from_response(pdb_connection.request('fact-contents', accountfacts_group_query))
+  $logger.info("Caching results...")
+  store.transaction do
+    store[:user_query] = accountfacts_user_query
+    store[:group_query] = accountfacts_group_query
+    store[:users] = user_account_facts
+    store[:groups] = group_account_facts
+  end
+end
 
 # Collect report output
 case options[:report]
